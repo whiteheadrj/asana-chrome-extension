@@ -87,6 +87,10 @@ interface PopupLocalState {
   pageUrl: string;
   emailSubject?: string;
   accountEmail?: string; // Gmail account email (for task notes)
+  emailBody?: string;
+  emailSender?: string;
+  contentType?: 'email' | 'webpage';
+  pageContent?: string; // For non-email pages (up to 2000 chars)
   // Warnings
   warnings: Warning[];
 }
@@ -106,6 +110,10 @@ const state: PopupLocalState = {
   pageUrl: '',
   emailSubject: undefined,
   accountEmail: undefined,
+  emailBody: undefined,
+  emailSender: undefined,
+  contentType: undefined,
+  pageContent: undefined,
   // Warnings
   warnings: [],
 };
@@ -270,6 +278,29 @@ function isOutlookPage(url: string): boolean {
 }
 
 /**
+ * Extract page content from non-email pages using chrome.scripting.executeScript
+ * Truncates to 2000 chars, returns undefined on failure
+ */
+async function extractPageContent(tabId: number): Promise<string | undefined> {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => document.body.innerText,
+    });
+
+    if (results && results.length > 0 && results[0].result) {
+      const content = results[0].result as string;
+      // Truncate to 2000 chars
+      return content.length > 2000 ? content.substring(0, 2000) : content;
+    }
+    return undefined;
+  } catch (error) {
+    console.debug('Failed to extract page content:', error);
+    return undefined;
+  }
+}
+
+/**
  * Request page info from the content script
  */
 async function requestPageInfo(): Promise<void> {
@@ -296,6 +327,9 @@ async function requestPageInfo(): Promise<void> {
             state.pageUrl = gmailInfo.permanentUrl;
             state.emailSubject = gmailInfo.subject;
             state.accountEmail = gmailInfo.accountEmail || undefined;
+            state.emailBody = gmailInfo.emailBody;
+            state.emailSender = gmailInfo.emailSender;
+            state.contentType = 'email';
 
             // Handle warnings from Gmail content script
             if (gmailInfo.warnings && gmailInfo.warnings.length > 0) {
@@ -305,8 +339,10 @@ async function requestPageInfo(): Promise<void> {
           } else {
             const outlookInfo = response as OutlookEmailInfo;
             state.pageUrl = outlookInfo.permanentUrl;
-            // Outlook content script doesn't extract subject yet
-            // Could extract from document title if needed
+            state.emailSubject = outlookInfo.subject;
+            state.emailBody = outlookInfo.emailBody;
+            state.emailSender = outlookInfo.emailSender;
+            state.contentType = 'email';
           }
         } else {
           // Content script didn't respond, use current URL
@@ -319,6 +355,10 @@ async function requestPageInfo(): Promise<void> {
     } else {
       // Not an email page, use current URL and document title
       state.pageUrl = currentUrl;
+      state.contentType = 'webpage';
+
+      // Extract page content for non-email pages
+      state.pageContent = await extractPageContent(tab.id);
     }
 
     // Populate URL field
@@ -344,11 +384,19 @@ async function generateAiSuggestion(): Promise<void> {
     return;
   }
 
+  // Get active tab to get the actual page title (not popup's document.title)
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const pageTitle = tab?.title || '';
+
   // Build AI input from page context
   const aiInput: AIInput = {
     pageUrl: state.pageUrl,
     emailSubject: state.emailSubject,
-    pageTitle: document.title,
+    pageTitle,
+    emailBody: state.emailBody,
+    emailSender: state.emailSender,
+    pageContent: state.pageContent,
+    contentType: state.contentType,
   };
 
   // Check if we have enough context

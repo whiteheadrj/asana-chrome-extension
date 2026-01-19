@@ -111,6 +111,8 @@ export interface GmailEmailInfo {
   permanentUrl: string;
   isConfidentialMode: boolean;
   subject?: string;
+  emailBody?: string;
+  emailSender?: string;
   warnings?: Warning[]; // Edge case warnings (account reorder, confidential mode)
 }
 
@@ -129,6 +131,9 @@ export interface OutlookEmailInfo {
   itemId: string | null;
   variant: OutlookVariant;
   permanentUrl: string;
+  subject?: string;
+  emailBody?: string;
+  emailSender?: string;
 }
 
 export interface OutlookPageInfo {
@@ -165,6 +170,10 @@ export interface AIInput {
   selectedText?: string;
   emailSubject?: string;
   pageUrl?: string;
+  emailBody?: string; // truncated to 1000 chars
+  emailSender?: string; // sender name or email
+  pageContent?: string; // for non-email pages, up to 2000 chars
+  contentType?: 'email' | 'webpage'; // helps prompt strategy
 }
 
 export interface AIResult {

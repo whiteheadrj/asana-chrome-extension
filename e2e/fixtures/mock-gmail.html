@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Q4 Budget Review Meeting - Action Required - Inbox - Gmail</title>
+  <style>
+    body {
+      font-family: 'Google Sans', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f6f8fc;
+    }
+    .email-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    .email-header {
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+    }
+    .subject {
+      font-size: 22px;
+      font-weight: 400;
+      margin: 0 0 8px;
+    }
+    .sender-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .sender-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #1a73e8;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 500;
+    }
+    .sender-details {
+      flex: 1;
+    }
+    /* Gmail-like selectors for sender name */
+    .gD {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .email-body {
+      line-height: 1.6;
+      color: #202124;
+    }
+    /* Gmail-like selectors for email body */
+    .a3s.aiL {
+      padding: 16px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="email-header">
+      <h1 class="subject" data-thread-id="1234">Q4 Budget Review Meeting - Action Required</h1>
+      <div class="sender-info">
+        <div class="sender-avatar">JS</div>
+        <div class="sender-details">
+          <!-- Gmail sender selectors -->
+          <span class="gD" email="john.smith@acme.com">John Smith</span>
+          <span class="go" style="color: #5f6368; font-size: 12px;">&lt;john.smith@acme.com&gt;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gmail body selectors -->
+    <div class="email-body">
+      <div class="a3s aiL" data-message-id="msg-5678">
+        <p>Hi Team,</p>
+        <p>I wanted to follow up on the Q4 budget review meeting scheduled for this Thursday at 2 PM.</p>
+        <p>Please review the attached spreadsheet before the meeting and come prepared with your department's projections for the next quarter. We need to finalize the marketing budget allocation by Friday.</p>
+        <p>Key discussion points:</p>
+        <ul>
+          <li>Marketing spend optimization - reduce by 15%</li>
+          <li>New product launch budget for January</li>
+          <li>Travel expenses reallocation</li>
+          <li>Q1 hiring freeze implications</li>
+        </ul>
+        <p>Invoice #4521 from the vendor needs approval before EOD Wednesday.</p>
+        <p>Let me know if you have any questions.</p>
+        <p>Best regards,<br>John</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden data for testing -->
+  <script>
+    // Expose test data for verification
+    window.testEmailData = {
+      subject: 'Q4 Budget Review Meeting - Action Required',
+      sender: 'John Smith',
+      senderEmail: 'john.smith@acme.com',
+      hasBody: true,
+      bodyContains: ['Q4 budget review', 'Invoice #4521', 'marketing budget']
+    };
+  </script>
+</body>
+</html>

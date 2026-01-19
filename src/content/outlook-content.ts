@@ -145,30 +145,99 @@ export function getEmailSubject(): string | undefined {
 }
 
 /**
+ * Try to extract the email body from the DOM
+ *
+ * @returns The email body text (truncated to 1000 chars) or undefined if not found
+ */
+export function getEmailBody(): string | undefined {
+  try {
+    const bodySelectors = [
+      '[data-app-section="ConversationReadingPane"]',
+      '.XbIp4.jmmB7.GNqVo',
+      '[aria-label="Message body"]',
+    ];
+
+    for (const selector of bodySelectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent) {
+        const text = element.textContent.trim();
+        if (text && text.length > 0) {
+          console.debug(`[Asana Extension] Outlook body extracted using selector: ${selector}`);
+          // Truncate to 1000 chars
+          return text.length > 1000 ? text.substring(0, 1000) : text;
+        }
+      }
+      console.debug(`[Asana Extension] Outlook body selector failed: ${selector}`);
+    }
+
+    console.debug('[Asana Extension] Could not extract email body from Outlook DOM - all selectors failed');
+    return undefined;
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting email body from Outlook DOM:', error);
+    return undefined;
+  }
+}
+
+/**
  * Try to extract the sender information from the DOM
+ *
+ * Returns the most specific value available: name is preferred over email.
  *
  * @returns The sender email or name, or undefined if not found
  */
 export function getSenderInfo(): string | undefined {
-  // Look for sender info in the reading pane
-  const senderSelectors = [
-    '[data-app-section="FromLine"] span',
-    'span[id*="PersonaName"]',
-    '.OZZZK', // Sender name class
-    '[aria-label*="From"]',
-  ];
+  try {
+    // Name selectors (preferred - return name when available)
+    const nameSelectors = [
+      '[data-app-section="FromLine"] span',
+      'span[id*="PersonaName"]',
+      '.OZZZK', // Sender name class
+      '[aria-label*="From"]',
+    ];
 
-  for (const selector of senderSelectors) {
-    const element = document.querySelector(selector);
-    if (element && element.textContent) {
-      const text = element.textContent.trim();
-      if (text && text.length > 0 && text.length < 200) {
-        return text;
+    // Email fallback selectors (use when name not available)
+    const emailSelectors = [
+      '[role="img"][aria-label*="@"]',
+      'button[aria-label*="@"]',
+    ];
+
+    // Try name selectors first
+    for (const selector of nameSelectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent) {
+        const text = element.textContent.trim();
+        if (text && text.length > 0 && text.length < 200) {
+          console.debug(`[Asana Extension] Outlook sender extracted using selector: ${selector}`);
+          return text;
+        }
       }
+      console.debug(`[Asana Extension] Outlook sender selector failed: ${selector}`);
     }
-  }
 
-  return undefined;
+    // Fall back to email selectors
+    for (const selector of emailSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        // Extract email from aria-label attribute
+        const ariaLabel = element.getAttribute('aria-label');
+        if (ariaLabel) {
+          // Extract email address from aria-label (e.g., "Profile picture of john@example.com")
+          const emailMatch = ariaLabel.match(/[\w.+-]+@[\w.-]+\.\w+/);
+          if (emailMatch) {
+            console.debug(`[Asana Extension] Outlook sender extracted using selector: ${selector} (email match)`);
+            return emailMatch[0];
+          }
+        }
+      }
+      console.debug(`[Asana Extension] Outlook sender selector failed: ${selector}`);
+    }
+
+    console.debug('[Asana Extension] Could not extract sender info from Outlook DOM - all selectors failed');
+    return undefined;
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting sender info from Outlook DOM:', error);
+    return undefined;
+  }
 }
 
 // =============================================================================
@@ -184,10 +253,18 @@ export function getOutlookEmailInfo(): OutlookEmailInfo {
   const url = window.location.href;
   const { variant, itemId, permanentUrl } = parseOutlookUrl(url);
 
+  // Extract additional email context
+  const subject = getEmailSubject();
+  const emailBody = getEmailBody();
+  const emailSender = getSenderInfo();
+
   return {
     itemId,
     variant,
     permanentUrl,
+    subject,
+    emailBody,
+    emailSender,
   };
 }
 

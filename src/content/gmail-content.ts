@@ -212,6 +212,105 @@ export function checkConfidentialMode(): boolean {
 }
 
 /**
+ * Try to extract the email body from the DOM
+ *
+ * @returns The email body text truncated to 1000 chars, or undefined if not found
+ */
+export function getEmailBody(): string | undefined {
+  try {
+    // Selectors for Gmail email body, in order of preference
+    const selectors = [
+      '.a3s.aiL',                    // Standard email body container
+      '[data-message-id] .ii.gt',   // Alternative email body selector
+      '.adn.ads',                    // Another email body container
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent) {
+        const bodyText = element.textContent.trim();
+        if (bodyText) {
+          console.debug(`[Asana Extension] Gmail body extracted using selector: ${selector}`);
+          // Truncate to 1000 characters
+          return bodyText.length > 1000 ? bodyText.substring(0, 1000) : bodyText;
+        }
+      }
+      console.debug(`[Asana Extension] Gmail body selector failed: ${selector}`);
+    }
+
+    console.debug('[Asana Extension] Could not extract email body from Gmail DOM - all selectors failed');
+    return undefined;
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting email body from Gmail DOM:', error);
+    return undefined;
+  }
+}
+
+/**
+ * Try to extract the email sender from the DOM
+ *
+ * @returns The sender name or email address, or undefined if not found
+ */
+export function getEmailSender(): string | undefined {
+  try {
+    // Method 1: span.gD - sender name element
+    const senderSpan = document.querySelector('span.gD');
+    if (senderSpan) {
+      // Try textContent first (sender name)
+      if (senderSpan.textContent?.trim()) {
+        console.debug('[Asana Extension] Gmail sender extracted using selector: span.gD (textContent)');
+        return senderSpan.textContent.trim();
+      }
+      // Fall back to email attribute
+      const emailAttr = senderSpan.getAttribute('email');
+      if (emailAttr) {
+        console.debug('[Asana Extension] Gmail sender extracted using selector: span.gD (email attr)');
+        return emailAttr;
+      }
+    }
+    console.debug('[Asana Extension] Gmail sender selector failed: span.gD');
+
+    // Method 2: [email] attribute selector
+    const emailElement = document.querySelector('[email]');
+    if (emailElement) {
+      const emailValue = emailElement.getAttribute('email');
+      if (emailValue) {
+        console.debug('[Asana Extension] Gmail sender extracted using selector: [email]');
+        return emailValue;
+      }
+    }
+    console.debug('[Asana Extension] Gmail sender selector failed: [email]');
+
+    // Method 3: span[data-hovercard-id] - extract email from hovercard ID
+    const hovercardSpan = document.querySelector('span[data-hovercard-id]');
+    if (hovercardSpan) {
+      const hovercardId = hovercardSpan.getAttribute('data-hovercard-id');
+      if (hovercardId) {
+        // data-hovercard-id often contains the email address
+        // Format can be like "email@example.com" or other identifiers
+        const emailMatch = hovercardId.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+        if (emailMatch) {
+          console.debug('[Asana Extension] Gmail sender extracted using selector: span[data-hovercard-id] (email match)');
+          return emailMatch[0];
+        }
+        // If no email pattern found, return the hovercard ID itself if it looks like an identifier
+        if (hovercardId.includes('@') || hovercardId.length > 0) {
+          console.debug('[Asana Extension] Gmail sender extracted using selector: span[data-hovercard-id] (hovercardId)');
+          return hovercardId;
+        }
+      }
+    }
+    console.debug('[Asana Extension] Gmail sender selector failed: span[data-hovercard-id]');
+
+    console.debug('[Asana Extension] Could not extract email sender from Gmail DOM - all selectors failed');
+    return undefined;
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting email sender from Gmail DOM:', error);
+    return undefined;
+  }
+}
+
+/**
  * Try to extract the email subject from the DOM
  *
  * @returns The subject or undefined if not found
@@ -366,6 +465,8 @@ export function getGmailEmailInfo(): GmailEmailInfo {
     permanentUrl,
     isConfidentialMode: checkConfidentialMode(),
     subject: getEmailSubject(),
+    emailBody: getEmailBody(),
+    emailSender: getEmailSender(),
   };
 }
 
@@ -381,6 +482,8 @@ export async function getGmailEmailInfoWithWarnings(): Promise<GmailEmailInfoWit
   const accountEmail = detectAccountEmail();
   const isConfidentialMode = checkConfidentialMode();
   const subject = getEmailSubject();
+  const emailBody = getEmailBody();
+  const emailSender = getEmailSender();
 
   // Detect warnings asynchronously
   const warnings = await detectWarnings(accountEmail, userId, isConfidentialMode);
@@ -392,6 +495,8 @@ export async function getGmailEmailInfoWithWarnings(): Promise<GmailEmailInfoWit
     permanentUrl,
     isConfidentialMode,
     subject,
+    emailBody,
+    emailSender,
     warnings,
   };
 }

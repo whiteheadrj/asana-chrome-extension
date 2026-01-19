@@ -1,9 +1,187 @@
 /**
- * Unit tests for Outlook URL parsing
+ * @vitest-environment happy-dom
  */
 
-import { describe, it, expect } from 'vitest';
-import { parseOutlookUrl, detectOutlookVariant } from '../outlook-content.js';
+/**
+ * Unit tests for Outlook content script
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { parseOutlookUrl, detectOutlookVariant, getEmailBody } from '../outlook-content.js';
+
+// =============================================================================
+// getEmailBody Tests
+// =============================================================================
+
+describe('getEmailBody', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    // Set up mock DOM
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    // Clean up DOM
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector ([data-app-section="ConversationReadingPane"])', () => {
+    it('returns body text from ConversationReadingPane selector', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">
+          This is the email body content from Outlook.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('This is the email body content from Outlook.');
+    });
+
+    it('trims whitespace from body text', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">
+
+          Trimmed email content.
+
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Trimmed email content.');
+    });
+  });
+
+  describe('fallback selector (.XbIp4.jmmB7.GNqVo)', () => {
+    it('returns body from reading pane body class when primary fails', () => {
+      mockContainer.innerHTML = `
+        <div class="XbIp4 jmmB7 GNqVo">
+          Fallback email body content from class selector.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Fallback email body content from class selector.');
+    });
+
+    it('uses primary selector when both are present', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">Primary content.</div>
+        <div class="XbIp4 jmmB7 GNqVo">Fallback content.</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Primary content.');
+    });
+  });
+
+  describe('tertiary selector ([aria-label="Message body"])', () => {
+    it('returns body from Message body aria-label when others fail', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Message body">
+          Third fallback email body via aria-label.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Third fallback email body via aria-label.');
+    });
+  });
+
+  describe('no selectors match', () => {
+    it('returns undefined when all selectors fail', () => {
+      mockContainer.innerHTML = `
+        <div class="other-class">
+          Not an email body element.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when container is empty', () => {
+      mockContainer.innerHTML = '';
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when element has no text content', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane"></div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when element has only whitespace', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">   </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('truncation', () => {
+    it('truncates at 1000 chars', () => {
+      const longContent = 'A'.repeat(1500);
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">${longContent}</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeDefined();
+      expect(result!.length).toBe(1000);
+      expect(result).toBe('A'.repeat(1000));
+    });
+
+    it('does not truncate body under 1000 chars', () => {
+      const shortContent = 'B'.repeat(500);
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">${shortContent}</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe(shortContent);
+      expect(result!.length).toBe(500);
+    });
+
+    it('returns exactly 1000 chars when content is exactly 1000', () => {
+      const exactContent = 'C'.repeat(1000);
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">${exactContent}</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe(exactContent);
+      expect(result!.length).toBe(1000);
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns undefined on DOM query error', () => {
+      // Mock document.querySelector to throw
+      const mockQuerySelector = vi.spyOn(document, 'querySelector').mockImplementation(() => {
+        throw new Error('DOM error');
+      });
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+
+      mockQuerySelector.mockRestore();
+    });
+  });
+});
+
+// =============================================================================
+// URL Parsing Tests
+// =============================================================================
 
 describe('detectOutlookVariant', () => {
   it('detects personal variant from live.com', () => {
