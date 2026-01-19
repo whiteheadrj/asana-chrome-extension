@@ -703,7 +703,7 @@ After POC validated, clean up code structure.
   - **Verify**: `git branch -r | grep feat/asana-extension`
   - **Commit**: None (just push)
 
-- [ ] V9 [VERIFY] CI pipeline passes
+- [x] V9 [VERIFY] CI pipeline passes
   - **Do**: Verify GitHub Actions passes after push
   - **Verify**: `gh pr checks --watch` or `gh run list --limit 1`
   - **Done when**: CI pipeline shows all green
