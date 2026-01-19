@@ -718,7 +718,7 @@ After POC validated, clean up code structure.
   - **Verify**: `gh pr view --json state,title | jq`
   - **Commit**: None
 
-- [ ] V10 [VERIFY] AC checklist
+- [x] V10 [VERIFY] AC checklist
   - **Do**: Verify all acceptance criteria from requirements.md
   - **Verify**:
     - AC-1.x: Check popup.ts implements all task creation flows
