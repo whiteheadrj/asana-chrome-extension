@@ -445,7 +445,7 @@ After POC validated, clean up code.
 
 ### Integration/E2E Tests
 
-- [ ] 3.6 Integration test for Gmail flow
+- [x] 3.6 Integration test for Gmail flow
   - **Do**:
     1. Create integration test that simulates Gmail page info flow
     2. Mock content script response with emailBody and emailSender
