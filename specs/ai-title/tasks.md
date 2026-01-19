@@ -100,7 +100,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
 
 ### Outlook Content Script
 
-- [ ] 1.7 Add getEmailBody() to Outlook content script
+- [x] 1.7 Add getEmailBody() to Outlook content script
   - **Do**:
     1. Create `getEmailBody(): string | undefined` function
     2. Use selectors: `[data-app-section="ConversationReadingPane"]`, `.XbIp4.jmmB7.GNqVo`, `[aria-label="Message body"]`

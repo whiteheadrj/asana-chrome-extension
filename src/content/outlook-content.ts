@@ -145,6 +145,32 @@ export function getEmailSubject(): string | undefined {
 }
 
 /**
+ * Try to extract the email body from the DOM
+ *
+ * @returns The email body text (truncated to 1000 chars) or undefined if not found
+ */
+export function getEmailBody(): string | undefined {
+  const bodySelectors = [
+    '[data-app-section="ConversationReadingPane"]',
+    '.XbIp4.jmmB7.GNqVo',
+    '[aria-label="Message body"]',
+  ];
+
+  for (const selector of bodySelectors) {
+    const element = document.querySelector(selector);
+    if (element && element.textContent) {
+      const text = element.textContent.trim();
+      if (text && text.length > 0) {
+        // Truncate to 1000 chars
+        return text.length > 1000 ? text.substring(0, 1000) : text;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+/**
  * Try to extract the sender information from the DOM
  *
  * @returns The sender email or name, or undefined if not found
