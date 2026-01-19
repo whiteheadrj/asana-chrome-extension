@@ -240,6 +240,57 @@ export function getEmailBody(): string | undefined {
 }
 
 /**
+ * Try to extract the email sender from the DOM
+ *
+ * @returns The sender name or email address, or undefined if not found
+ */
+export function getEmailSender(): string | undefined {
+  // Method 1: span.gD - sender name element
+  const senderSpan = document.querySelector('span.gD');
+  if (senderSpan) {
+    // Try textContent first (sender name)
+    if (senderSpan.textContent?.trim()) {
+      return senderSpan.textContent.trim();
+    }
+    // Fall back to email attribute
+    const emailAttr = senderSpan.getAttribute('email');
+    if (emailAttr) {
+      return emailAttr;
+    }
+  }
+
+  // Method 2: [email] attribute selector
+  const emailElement = document.querySelector('[email]');
+  if (emailElement) {
+    const emailValue = emailElement.getAttribute('email');
+    if (emailValue) {
+      return emailValue;
+    }
+  }
+
+  // Method 3: span[data-hovercard-id] - extract email from hovercard ID
+  const hovercardSpan = document.querySelector('span[data-hovercard-id]');
+  if (hovercardSpan) {
+    const hovercardId = hovercardSpan.getAttribute('data-hovercard-id');
+    if (hovercardId) {
+      // data-hovercard-id often contains the email address
+      // Format can be like "email@example.com" or other identifiers
+      const emailMatch = hovercardId.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      if (emailMatch) {
+        return emailMatch[0];
+      }
+      // If no email pattern found, return the hovercard ID itself if it looks like an identifier
+      if (hovercardId.includes('@') || hovercardId.length > 0) {
+        return hovercardId;
+      }
+    }
+  }
+
+  console.debug('[Asana Extension] Could not extract email sender from Gmail DOM');
+  return undefined;
+}
+
+/**
  * Try to extract the email subject from the DOM
  *
  * @returns The subject or undefined if not found

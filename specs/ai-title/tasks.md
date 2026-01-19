@@ -65,7 +65,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-1_
   - _Design: Gmail Content Script section_
 
-- [ ] 1.5 Add getEmailSender() to Gmail content script
+- [x] 1.5 Add getEmailSender() to Gmail content script
   - **Do**:
     1. Create `getEmailSender(): string | undefined` function
     2. Use selectors: `span.gD`, `[email]`, `span[data-hovercard-id]`
