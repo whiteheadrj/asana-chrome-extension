@@ -80,7 +80,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-3_
   - _Design: Gmail Content Script section_
 
-- [ ] 1.6 Update Gmail message listener to include new fields
+- [x] 1.6 Update Gmail message listener to include new fields
   - **Do**:
     1. In `getGmailEmailInfoWithWarnings()`, call `getEmailBody()` and add to return object
     2. Call `getEmailSender()` and add to return object

@@ -445,6 +445,8 @@ export function getGmailEmailInfo(): GmailEmailInfo {
     permanentUrl,
     isConfidentialMode: checkConfidentialMode(),
     subject: getEmailSubject(),
+    emailBody: getEmailBody(),
+    emailSender: getEmailSender(),
   };
 }
 
@@ -460,6 +462,8 @@ export async function getGmailEmailInfoWithWarnings(): Promise<GmailEmailInfoWit
   const accountEmail = detectAccountEmail();
   const isConfidentialMode = checkConfidentialMode();
   const subject = getEmailSubject();
+  const emailBody = getEmailBody();
+  const emailSender = getEmailSender();
 
   // Detect warnings asynchronously
   const warnings = await detectWarnings(accountEmail, userId, isConfidentialMode);
@@ -471,6 +475,8 @@ export async function getGmailEmailInfoWithWarnings(): Promise<GmailEmailInfoWit
     permanentUrl,
     isConfidentialMode,
     subject,
+    emailBody,
+    emailSender,
     warnings,
   };
 }
