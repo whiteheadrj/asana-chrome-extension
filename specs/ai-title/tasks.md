@@ -216,7 +216,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-7_
   - _Design: Popup (popup.ts) section_
 
-- [ ] V3 [VERIFY] Quality checkpoint: popup changes
+- [x] V3 [VERIFY] Quality checkpoint: popup changes
   - **Do**: Run quality commands to verify popup changes compile
   - **Verify**: `pnpm check-types && pnpm lint`
   - **Done when**: No type errors, no lint errors
