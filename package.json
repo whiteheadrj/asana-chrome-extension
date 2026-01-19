@@ -1,0 +1,32 @@
+{
+  "name": "asana-chrome-extension",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Chrome extension for creating Asana tasks from any web page",
+  "scripts": {
+    "build": "node esbuild.config.js",
+    "dev": "node esbuild.config.js --watch",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.27.0",
+    "@eslint/js": "^9.39.2",
+    "@types/chrome": "^0.0.280",
+    "@typescript-eslint/eslint-plugin": "^8.53.0",
+    "@typescript-eslint/parser": "^8.53.0",
+    "@vitest/coverage-v8": "^4.0.17",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.39.2",
+    "js-yaml": "^4.1.1",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.53.0",
+    "vitest": "^4.0.17"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

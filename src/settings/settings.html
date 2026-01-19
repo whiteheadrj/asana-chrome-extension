@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=600, initial-scale=1.0">
+  <title>Asana Task Creator - Settings</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="settings-container">
+    <header class="settings-header">
+      <h1>Asana Task Creator Settings</h1>
+    </header>
+
+    <!-- Status Messages -->
+    <div id="status-message" class="status-message hidden"></div>
+
+    <!-- Settings Form -->
+    <form id="settings-form" class="settings-form">
+      <!-- AI Settings Section -->
+      <section class="settings-section">
+        <h2>AI Settings</h2>
+        <p class="section-description">Configure Claude AI for automatic task name suggestions.</p>
+
+        <div class="form-group">
+          <label for="claude-api-key">Claude API Key</label>
+          <div class="password-input-container">
+            <input
+              type="password"
+              id="claude-api-key"
+              name="claudeApiKey"
+              placeholder="sk-ant-api03-..."
+              autocomplete="off"
+            >
+            <button type="button" id="toggle-api-key" class="toggle-visibility-button" title="Show/hide API key">
+              <svg class="icon-show" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              <svg class="icon-hide hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                <path d="M1 1l22 22"/>
+              </svg>
+            </button>
+          </div>
+          <p class="field-hint">
+            Get your API key from <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- Keyboard Shortcuts Section -->
+      <section class="settings-section">
+        <h2>Keyboard Shortcuts</h2>
+        <p class="section-description">View and manage extension keyboard shortcuts.</p>
+
+        <div class="form-group">
+          <label>Open Task Creator</label>
+          <div class="shortcut-display">
+            <kbd id="current-shortcut">Alt+A</kbd>
+          </div>
+          <p class="field-hint">
+            <a href="#" id="open-shortcuts-link">Change shortcuts in Chrome settings</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- Cache Settings Section -->
+      <section class="settings-section">
+        <h2>Cache Settings</h2>
+        <p class="section-description">Configure how long Asana data is cached locally.</p>
+
+        <div class="form-group">
+          <label for="cache-ttl">Cache Duration</label>
+          <select id="cache-ttl" name="cacheTtl">
+            <option value="60000">1 minute</option>
+            <option value="300000" selected>5 minutes (default)</option>
+            <option value="600000">10 minutes</option>
+            <option value="1800000">30 minutes</option>
+            <option value="3600000">1 hour</option>
+          </select>
+          <p class="field-hint">Cached data (workspaces, projects, tags) will refresh after this time.</p>
+        </div>
+
+        <div class="form-group">
+          <button type="button" id="clear-cache-button" class="secondary-button">
+            Clear Cache Now
+          </button>
+          <p class="field-hint">Force refresh all cached Asana data.</p>
+        </div>
+      </section>
+
+      <!-- Account Section -->
+      <section class="settings-section">
+        <h2>Account</h2>
+        <p class="section-description">Manage your Asana connection.</p>
+
+        <div id="account-status" class="account-status">
+          <div class="account-status-indicator">
+            <span id="connection-status" class="status-dot disconnected"></span>
+            <span id="connection-text">Not connected</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <button type="button" id="disconnect-button" class="danger-button" disabled>
+            Disconnect Account
+          </button>
+          <p class="field-hint">This will log you out and clear your saved preferences.</p>
+        </div>
+      </section>
+
+      <!-- Save Button -->
+      <div class="form-actions">
+        <button type="submit" id="save-button" class="primary-button">
+          Save Settings
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script type="module" src="settings.js"></script>
+</body>
+</html>

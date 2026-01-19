@@ -1,0 +1,8 @@
+specs/.current-spec
+**/.progress.md
+node_modules/
+dist/
+.DS_Store
+
+# Local config with credentials - never commit
+src/config.local.ts
