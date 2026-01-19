@@ -127,7 +127,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-4_
   - _Design: Outlook Content Script section_
 
-- [ ] 1.9 Update Outlook message listener to include new fields
+- [x] 1.9 Update Outlook message listener to include new fields
   - **Do**:
     1. In `getOutlookEmailInfo()`, call `getEmailBody()` and add to return object
     2. Call `getSenderInfo()` and add as emailSender to return object

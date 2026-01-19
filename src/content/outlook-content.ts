@@ -235,10 +235,18 @@ export function getOutlookEmailInfo(): OutlookEmailInfo {
   const url = window.location.href;
   const { variant, itemId, permanentUrl } = parseOutlookUrl(url);
 
+  // Extract additional email context
+  const subject = getEmailSubject();
+  const emailBody = getEmailBody();
+  const emailSender = getSenderInfo();
+
   return {
     itemId,
     variant,
     permanentUrl,
+    subject,
+    emailBody,
+    emailSender,
   };
 }
 
