@@ -285,7 +285,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
 
 ### POC Checkpoint
 
-- [ ] 1.18 POC Checkpoint - Build and manual verification
+- [x] 1.18 POC Checkpoint - Build and manual verification
   - **Do**:
     1. Run full build: `pnpm build`
     2. Build succeeds without errors
