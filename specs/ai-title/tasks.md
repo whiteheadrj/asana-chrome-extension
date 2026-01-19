@@ -491,7 +491,7 @@ After POC validated, clean up code.
   - **Done when**: All commands pass with no errors
   - **Commit**: `chore(ci): pass local CI` (if fixes needed)
 
-- [ ] 4.2 [VERIFY] CI pipeline passes
+- [x] 4.2 [VERIFY] CI pipeline passes
   - **Do**:
     1. Verify current branch is feature branch: `git branch --show-current`
     2. Push branch: `git push -u origin feat/ai-title` (or current branch)
