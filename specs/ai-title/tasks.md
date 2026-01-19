@@ -491,7 +491,7 @@ After POC validated, clean up code.
   - **Done when**: All commands pass with no errors
   - **Commit**: `chore(ci): pass local CI` (if fixes needed)
 
-- [ ] 4.2 [VERIFY] CI pipeline passes
+- [x] 4.2 [VERIFY] CI pipeline passes
   - **Do**:
     1. Verify current branch is feature branch: `git branch --show-current`
     2. Push branch: `git push -u origin feat/ai-title` (or current branch)
@@ -501,7 +501,7 @@ After POC validated, clean up code.
   - **Done when**: CI pipeline passes, all checks green
   - **Commit**: None (verification only)
 
-- [ ] 4.3 [VERIFY] AC checklist verification
+- [x] 4.3 [VERIFY] AC checklist verification
   - **Do**: Verify each acceptance criterion programmatically:
     - AC-1.1: Grep for getEmailBody in gmail-content.ts, verify truncation to 1000
     - AC-1.2: Grep for getEmailBody in outlook-content.ts, verify truncation to 1000
