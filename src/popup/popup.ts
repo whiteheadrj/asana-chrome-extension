@@ -393,6 +393,10 @@ async function generateAiSuggestion(): Promise<void> {
     pageUrl: state.pageUrl,
     emailSubject: state.emailSubject,
     pageTitle,
+    emailBody: state.emailBody,
+    emailSender: state.emailSender,
+    pageContent: state.pageContent,
+    contentType: state.contentType,
   };
 
   // Check if we have enough context

@@ -201,7 +201,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-10, AC-3.1_
   - _Design: Popup (popup.ts) section_
 
-- [ ] 1.14 Update generateAiSuggestion() to pass new data to AI
+- [x] 1.14 Update generateAiSuggestion() to pass new data to AI
   - **Do**:
     1. Build AIInput with all new fields:
        - emailBody: state.emailBody
