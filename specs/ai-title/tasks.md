@@ -459,7 +459,7 @@ After POC validated, clean up code.
   - _Requirements: US-1_
   - _Design: Test Strategy - Integration Tests_
 
-- [ ] 3.7 E2E test setup for browser extension
+- [x] 3.7 E2E test setup for browser extension
   - **Do**:
     1. Add e2e test configuration if not exists
     2. Create basic e2e test that:
