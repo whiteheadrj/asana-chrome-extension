@@ -298,7 +298,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
 
 After POC validated, clean up code.
 
-- [ ] 2.1 Extract truncate helper function
+- [x] 2.1 Extract truncate helper function
   - **Do**:
     1. Create `truncate(text: string, maxLength: number): string` utility function
     2. Add ellipsis when truncating: `text.substring(0, maxLength) + '...'`
