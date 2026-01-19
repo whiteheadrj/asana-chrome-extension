@@ -37,7 +37,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-5_
   - _Design: Extended GmailEmailInfo section_
 
-- [ ] 1.3 Extend OutlookEmailInfo type
+- [x] 1.3 Extend OutlookEmailInfo type
   - **Do**:
     1. Add `subject?: string` to OutlookEmailInfo interface
     2. Add `emailBody?: string` to OutlookEmailInfo interface

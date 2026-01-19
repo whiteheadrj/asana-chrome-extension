@@ -131,6 +131,9 @@ export interface OutlookEmailInfo {
   itemId: string | null;
   variant: OutlookVariant;
   permanentUrl: string;
+  subject?: string;
+  emailBody?: string;
+  emailSender?: string;
 }
 
 export interface OutlookPageInfo {
