@@ -265,7 +265,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-8, AC-5.1, AC-5.2, AC-5.3_
   - _Design: AI Module (ai.ts) section_
 
-- [ ] 1.17 Update confidence calculation for new inputs
+- [x] 1.17 Update confidence calculation for new inputs
   - **Do**:
     1. Set confidence = 'high' if emailBody present and length > 50
     2. Adjust existing confidence logic to consider emailBody
