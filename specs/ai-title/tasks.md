@@ -325,7 +325,7 @@ After POC validated, clean up code.
   - _Requirements: FR-11, AC-1.3_
   - _Design: Error Handling section_
 
-- [ ] 2.3 Add logging for DOM selector debugging
+- [x] 2.3 Add logging for DOM selector debugging
   - **Do**:
     1. Add console.debug when body selector fails in Gmail
     2. Add console.debug when sender selector fails in Gmail
