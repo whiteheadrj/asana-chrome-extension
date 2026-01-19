@@ -159,7 +159,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-6, AC-4.1_
   - _Design: Popup (popup.ts) section_
 
-- [ ] 1.11 Add state fields for new email data
+- [x] 1.11 Add state fields for new email data
   - **Do**:
     1. Add `emailBody?: string` to PopupLocalState interface
     2. Add `emailSender?: string` to PopupLocalState interface

@@ -87,6 +87,9 @@ interface PopupLocalState {
   pageUrl: string;
   emailSubject?: string;
   accountEmail?: string; // Gmail account email (for task notes)
+  emailBody?: string;
+  emailSender?: string;
+  contentType?: 'email' | 'webpage';
   // Warnings
   warnings: Warning[];
 }
@@ -106,6 +109,9 @@ const state: PopupLocalState = {
   pageUrl: '',
   emailSubject: undefined,
   accountEmail: undefined,
+  emailBody: undefined,
+  emailSender: undefined,
+  contentType: undefined,
   // Warnings
   warnings: [],
 };
