@@ -437,7 +437,7 @@ After POC validated, clean up code.
   - **Commit**: `test(ai): add unit tests for confidence calculation with emailBody`
   - _Design: Test Strategy - ai.test.ts_
 
-- [ ] V7 [VERIFY] Quality checkpoint: AI tests
+- [x] V7 [VERIFY] Quality checkpoint: AI tests
   - **Do**: Run test suite to verify all AI tests pass
   - **Verify**: `pnpm test`
   - **Done when**: All tests pass
