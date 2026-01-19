@@ -425,7 +425,7 @@ After POC validated, clean up code.
   - _Requirements: FR-8, AC-5.1_
   - _Design: Test Strategy - ai.test.ts_
 
-- [ ] 3.5 Unit tests for confidence calculation with emailBody
+- [x] 3.5 Unit tests for confidence calculation with emailBody
   - **Do**:
     1. Test: returns high confidence when emailBody > 50 chars
     2. Test: existing emailSubject high confidence still works

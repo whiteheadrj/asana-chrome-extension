@@ -497,6 +497,117 @@ describe('AI module', () => {
   });
 
   // ===========================================================================
+  // Confidence calculation with emailBody
+  // ===========================================================================
+
+  describe('confidence calculation with emailBody', () => {
+    it('returns high confidence when emailBody > 50 chars', async () => {
+      const mockResponse = createClaudeResponse('Review meeting notes');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      // emailBody with 60 characters (> 50)
+      const input: AIInput = { emailBody: 'A'.repeat(60) };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('high');
+    });
+
+    it('returns medium confidence when emailBody <= 50 chars', async () => {
+      const mockResponse = createClaudeResponse('Check email');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      // emailBody with exactly 50 characters (not > 50)
+      const input: AIInput = { emailBody: 'A'.repeat(50), pageTitle: 'Inbox' };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('medium');
+    });
+
+    it('returns high confidence when emailBody exactly 51 chars', async () => {
+      const mockResponse = createClaudeResponse('Review message');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      // emailBody with exactly 51 characters (> 50 boundary)
+      const input: AIInput = { emailBody: 'A'.repeat(51) };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('high');
+    });
+
+    it('existing emailSubject high confidence still works', async () => {
+      const mockResponse = createClaudeResponse('Reply to email');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = { emailSubject: 'Q4 Budget Meeting' };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('high');
+    });
+
+    it('existing selectedText high confidence still works for long text', async () => {
+      const mockResponse = createClaudeResponse('Process request');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      // selectedText > 20 chars should be high confidence
+      const input: AIInput = { selectedText: 'This is selected text with more than twenty characters' };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('high');
+    });
+
+    it('selectedText <= 20 chars is not high confidence alone', async () => {
+      const mockResponse = createClaudeResponse('Check item');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      // selectedText exactly 20 chars (not > 20)
+      const input: AIInput = { selectedText: '12345678901234567890', pageTitle: 'Page' };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('medium');
+    });
+
+    it('emailBody and emailSubject both present yields high confidence', async () => {
+      const mockResponse = createClaudeResponse('Follow up on email');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = {
+        emailSubject: 'Project Update',
+        emailBody: 'A'.repeat(100),
+      };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('high');
+    });
+
+    it('short emailBody without other high-confidence inputs is medium', async () => {
+      const mockResponse = createClaudeResponse('Review');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      // Short emailBody (30 chars), has pageTitle so not low
+      const input: AIInput = { emailBody: 'Short email body content here.', pageTitle: 'Gmail' };
+
+      const result = await generateTaskName(input, config);
+
+      expect(result?.confidence).toBe('medium');
+    });
+  });
+
+  // ===========================================================================
   // generateTaskName - AbortSignal Cancellation
   // ===========================================================================
 
