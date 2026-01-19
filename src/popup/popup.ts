@@ -302,6 +302,9 @@ async function requestPageInfo(): Promise<void> {
             state.pageUrl = gmailInfo.permanentUrl;
             state.emailSubject = gmailInfo.subject;
             state.accountEmail = gmailInfo.accountEmail || undefined;
+            state.emailBody = gmailInfo.emailBody;
+            state.emailSender = gmailInfo.emailSender;
+            state.contentType = 'email';
 
             // Handle warnings from Gmail content script
             if (gmailInfo.warnings && gmailInfo.warnings.length > 0) {
@@ -311,8 +314,10 @@ async function requestPageInfo(): Promise<void> {
           } else {
             const outlookInfo = response as OutlookEmailInfo;
             state.pageUrl = outlookInfo.permanentUrl;
-            // Outlook content script doesn't extract subject yet
-            // Could extract from document title if needed
+            state.emailSubject = outlookInfo.subject;
+            state.emailBody = outlookInfo.emailBody;
+            state.emailSender = outlookInfo.emailSender;
+            state.contentType = 'email';
           }
         } else {
           // Content script didn't respond, use current URL
@@ -325,6 +330,7 @@ async function requestPageInfo(): Promise<void> {
     } else {
       // Not an email page, use current URL and document title
       state.pageUrl = currentUrl;
+      state.contentType = 'webpage';
     }
 
     // Populate URL field

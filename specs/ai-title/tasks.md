@@ -172,7 +172,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-7_
   - _Design: Popup (popup.ts) section_
 
-- [ ] 1.12 Update requestPageInfo() to capture new fields
+- [x] 1.12 Update requestPageInfo() to capture new fields
   - **Do**:
     1. In Gmail branch, capture `gmailInfo.emailBody` and `gmailInfo.emailSender` to state
     2. Set `state.contentType = 'email'` for Gmail
