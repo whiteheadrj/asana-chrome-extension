@@ -17,7 +17,7 @@ import {
   wrapFetchError,
   wrapResponseError,
 } from '../shared/errors';
-import { ASANA_CLIENT_ID } from '../config.local';
+import { ASANA_CLIENT_ID } from '../config';
 
 // =============================================================================
 // Constants
@@ -26,7 +26,7 @@ import { ASANA_CLIENT_ID } from '../config.local';
 const ASANA_OAUTH_BASE = 'https://app.asana.com/-/oauth_authorize';
 const ASANA_TOKEN_ENDPOINT = 'https://app.asana.com/-/oauth_token';
 
-// Client ID imported from config.local.ts (gitignored)
+// Client ID imported from config.ts (see config.ts for setup instructions)
 const CLIENT_ID = ASANA_CLIENT_ID;
 
 // =============================================================================
