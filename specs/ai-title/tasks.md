@@ -51,7 +51,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
 
 ### Gmail Content Script
 
-- [ ] 1.4 Add getEmailBody() to Gmail content script
+- [x] 1.4 Add getEmailBody() to Gmail content script
   - **Do**:
     1. Create `getEmailBody(): string | undefined` function
     2. Use selectors: `.a3s.aiL`, `[data-message-id] .ii.gt`, `.adn.ads`

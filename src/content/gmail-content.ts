@@ -212,6 +212,34 @@ export function checkConfidentialMode(): boolean {
 }
 
 /**
+ * Try to extract the email body from the DOM
+ *
+ * @returns The email body text truncated to 1000 chars, or undefined if not found
+ */
+export function getEmailBody(): string | undefined {
+  // Selectors for Gmail email body, in order of preference
+  const selectors = [
+    '.a3s.aiL',                    // Standard email body container
+    '[data-message-id] .ii.gt',   // Alternative email body selector
+    '.adn.ads',                    // Another email body container
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element && element.textContent) {
+      const bodyText = element.textContent.trim();
+      if (bodyText) {
+        // Truncate to 1000 characters
+        return bodyText.length > 1000 ? bodyText.substring(0, 1000) : bodyText;
+      }
+    }
+  }
+
+  console.debug('[Asana Extension] Could not extract email body from Gmail DOM');
+  return undefined;
+}
+
+/**
  * Try to extract the email subject from the DOM
  *
  * @returns The subject or undefined if not found
