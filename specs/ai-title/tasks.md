@@ -384,7 +384,7 @@ After POC validated, clean up code.
 
 ### Unit Tests for Outlook Content Script
 
-- [ ] 3.3 Unit tests for getEmailBody() in Outlook
+- [x] 3.3 Unit tests for getEmailBody() in Outlook
   - **Do**:
     1. Add test cases in outlook-content.test.ts
     2. Test: returns body from ConversationReadingPane selector
