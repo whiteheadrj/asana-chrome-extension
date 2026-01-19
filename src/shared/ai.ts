@@ -248,7 +248,9 @@ export async function generateTaskName(
 
     // Determine confidence based on input quality
     let confidence: 'high' | 'medium' | 'low' = 'medium';
-    if (input.emailSubject || (input.selectedText && input.selectedText.length > 20)) {
+    if (input.emailSubject ||
+        (input.selectedText && input.selectedText.length > 20) ||
+        (input.emailBody && input.emailBody.length > 50)) {
       confidence = 'high';
     } else if (!input.pageTitle && !input.selectedText) {
       confidence = 'low';
