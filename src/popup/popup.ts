@@ -344,11 +344,15 @@ async function generateAiSuggestion(): Promise<void> {
     return;
   }
 
+  // Get active tab to get the actual page title (not popup's document.title)
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const pageTitle = tab?.title || '';
+
   // Build AI input from page context
   const aiInput: AIInput = {
     pageUrl: state.pageUrl,
     emailSubject: state.emailSubject,
-    pageTitle: document.title,
+    pageTitle,
   };
 
   // Check if we have enough context

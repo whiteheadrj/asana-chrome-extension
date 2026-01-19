@@ -147,7 +147,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
 
 ### Popup Updates
 
-- [ ] 1.10 Fix pageTitle bug in popup
+- [x] 1.10 Fix pageTitle bug in popup
   - **Do**:
     1. In `generateAiSuggestion()`, get active tab via `chrome.tabs.query()`
     2. Use `tab.title` instead of `document.title` for pageTitle
