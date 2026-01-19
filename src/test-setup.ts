@@ -71,8 +71,8 @@ const mockChromeIdentity = {
 };
 
 const mockChromeTabs = {
-  query: vi.fn(() => Promise.resolve([])),
-  sendMessage: vi.fn(() => Promise.resolve()),
+  query: vi.fn((_queryInfo: chrome.tabs.QueryInfo) => Promise.resolve([] as chrome.tabs.Tab[])),
+  sendMessage: vi.fn((_tabId: number, _message: unknown) => Promise.resolve(undefined as unknown)),
   get: vi.fn(() => Promise.resolve({ id: 1, url: 'https://example.com' })),
   create: vi.fn((_createProperties: chrome.tabs.CreateProperties, callback?: (tab: chrome.tabs.Tab) => void) => {
     const mockTab = { id: 123, url: _createProperties.url };

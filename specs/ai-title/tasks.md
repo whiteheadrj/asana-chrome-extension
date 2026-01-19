@@ -485,7 +485,7 @@ After POC validated, clean up code.
 
 ## Phase 4: Quality Gates
 
-- [ ] 4.1 [VERIFY] Full local CI: lint, types, test, build
+- [x] 4.1 [VERIFY] Full local CI: lint, types, test, build
   - **Do**: Run complete local CI suite
   - **Verify**: `pnpm lint && pnpm check-types && pnpm test && pnpm build`
   - **Done when**: All commands pass with no errors
