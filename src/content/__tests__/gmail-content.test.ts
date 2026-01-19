@@ -1,9 +1,191 @@
 /**
- * Unit tests for Gmail URL parsing
+ * @vitest-environment happy-dom
  */
 
-import { describe, it, expect } from 'vitest';
-import { parseGmailUrl } from '../gmail-content.js';
+/**
+ * Unit tests for Gmail content script
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { parseGmailUrl, getEmailBody } from '../gmail-content.js';
+
+// =============================================================================
+// getEmailBody Tests
+// =============================================================================
+
+describe('getEmailBody', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    // Set up mock DOM
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    // Clean up DOM
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (.a3s.aiL)', () => {
+    it('returns body text from .a3s.aiL selector', () => {
+      mockContainer.innerHTML = `
+        <div class="a3s aiL">
+          This is the email body content from Gmail.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('This is the email body content from Gmail.');
+    });
+
+    it('trims whitespace from body text', () => {
+      mockContainer.innerHTML = `
+        <div class="a3s aiL">
+
+          Trimmed email content.
+
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Trimmed email content.');
+    });
+  });
+
+  describe('fallback selector ([data-message-id] .ii.gt)', () => {
+    it('falls back to [data-message-id] .ii.gt when primary fails', () => {
+      mockContainer.innerHTML = `
+        <div data-message-id="123">
+          <div class="ii gt">
+            Fallback email body content.
+          </div>
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Fallback email body content.');
+    });
+
+    it('uses primary selector when both are present', () => {
+      mockContainer.innerHTML = `
+        <div class="a3s aiL">Primary content.</div>
+        <div data-message-id="123">
+          <div class="ii gt">Fallback content.</div>
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Primary content.');
+    });
+  });
+
+  describe('tertiary selector (.adn.ads)', () => {
+    it('falls back to .adn.ads when others fail', () => {
+      mockContainer.innerHTML = `
+        <div class="adn ads">
+          Third fallback email body.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Third fallback email body.');
+    });
+  });
+
+  describe('no selectors match', () => {
+    it('returns undefined when all selectors fail', () => {
+      mockContainer.innerHTML = `
+        <div class="other-class">
+          Not an email body element.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when container is empty', () => {
+      mockContainer.innerHTML = '';
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when element has no text content', () => {
+      mockContainer.innerHTML = `
+        <div class="a3s aiL"></div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when element has only whitespace', () => {
+      mockContainer.innerHTML = `
+        <div class="a3s aiL">   </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('truncation', () => {
+    it('truncates body at 1000 chars', () => {
+      const longContent = 'A'.repeat(1500);
+      mockContainer.innerHTML = `
+        <div class="a3s aiL">${longContent}</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeDefined();
+      expect(result!.length).toBe(1000);
+      expect(result).toBe('A'.repeat(1000));
+    });
+
+    it('does not truncate body under 1000 chars', () => {
+      const shortContent = 'B'.repeat(500);
+      mockContainer.innerHTML = `
+        <div class="a3s aiL">${shortContent}</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe(shortContent);
+      expect(result!.length).toBe(500);
+    });
+
+    it('returns exactly 1000 chars when content is exactly 1000', () => {
+      const exactContent = 'C'.repeat(1000);
+      mockContainer.innerHTML = `
+        <div class="a3s aiL">${exactContent}</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe(exactContent);
+      expect(result!.length).toBe(1000);
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns undefined on DOM query error', () => {
+      // Mock document.querySelector to throw
+      const mockQuerySelector = vi.spyOn(document, 'querySelector').mockImplementation(() => {
+        throw new Error('DOM error');
+      });
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+
+      mockQuerySelector.mockRestore();
+    });
+  });
+});
+
+// =============================================================================
+// parseGmailUrl Tests
+// =============================================================================
 
 describe('parseGmailUrl', () => {
   describe('inbox view', () => {

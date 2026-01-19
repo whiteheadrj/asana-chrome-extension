@@ -351,7 +351,7 @@ After POC validated, clean up code.
 
 ### Unit Tests for Gmail Content Script
 
-- [ ] 3.1 Unit tests for getEmailBody() in Gmail
+- [x] 3.1 Unit tests for getEmailBody() in Gmail
   - **Do**:
     1. Create test cases in gmail-content.test.ts
     2. Test: returns body text from `.a3s.aiL` selector
