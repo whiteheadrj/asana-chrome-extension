@@ -14,13 +14,19 @@ import {
 // Constants
 // =============================================================================
 
-const SYSTEM_PROMPT = `Generate a concise, actionable task title (5-10 words).
-Output ONLY the task title, no explanation.
+const SYSTEM_PROMPT = `You extract actionable task titles from emails and web pages.
+
+Rules:
+- Start with action verb (Review, Follow up, Schedule, Reply to, Complete, etc.)
+- Include key entity (person name, document, project, deadline)
+- 5-10 words maximum
+- Preserve specific details (dates, numbers, names)
+- Output ONLY the task title, no explanation
+
 Examples:
-- "Review Q4 budget proposal"
-- "Reply to John about project timeline"
-- "Schedule meeting with design team"
-- "Follow up on invoice #1234"`;
+- Email about budget review -> "Review Q4 budget before Thursday meeting"
+- Invoice approval request -> "Approve invoice #4521 for John"
+- PR review notification -> "Review PR #123 - authentication fix"`;
 
 const DEFAULT_MODEL = 'claude-3-haiku-20240307';
 const MAX_TOKENS = 50;

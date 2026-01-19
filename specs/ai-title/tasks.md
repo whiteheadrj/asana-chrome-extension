@@ -224,7 +224,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
 
 ### AI Module Updates
 
-- [ ] 1.15 Improve SYSTEM_PROMPT for action-oriented titles
+- [x] 1.15 Improve SYSTEM_PROMPT for action-oriented titles
   - **Do**:
     1. Replace current SYSTEM_PROMPT with action-verb focused version:
        ```
