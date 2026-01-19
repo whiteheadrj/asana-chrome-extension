@@ -310,7 +310,7 @@ After POC validated, clean up code.
   - **Commit**: `refactor(ai): extract truncate helper function`
   - _Design: Helper Functions section_
 
-- [ ] 2.2 Add error handling to content script extraction functions
+- [x] 2.2 Add error handling to content script extraction functions
   - **Do**:
     1. Wrap getEmailBody() DOM queries in try-catch
     2. Wrap getEmailSender() DOM queries in try-catch

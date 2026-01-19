@@ -150,24 +150,30 @@ export function getEmailSubject(): string | undefined {
  * @returns The email body text (truncated to 1000 chars) or undefined if not found
  */
 export function getEmailBody(): string | undefined {
-  const bodySelectors = [
-    '[data-app-section="ConversationReadingPane"]',
-    '.XbIp4.jmmB7.GNqVo',
-    '[aria-label="Message body"]',
-  ];
+  try {
+    const bodySelectors = [
+      '[data-app-section="ConversationReadingPane"]',
+      '.XbIp4.jmmB7.GNqVo',
+      '[aria-label="Message body"]',
+    ];
 
-  for (const selector of bodySelectors) {
-    const element = document.querySelector(selector);
-    if (element && element.textContent) {
-      const text = element.textContent.trim();
-      if (text && text.length > 0) {
-        // Truncate to 1000 chars
-        return text.length > 1000 ? text.substring(0, 1000) : text;
+    for (const selector of bodySelectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent) {
+        const text = element.textContent.trim();
+        if (text && text.length > 0) {
+          // Truncate to 1000 chars
+          return text.length > 1000 ? text.substring(0, 1000) : text;
+        }
       }
     }
-  }
 
-  return undefined;
+    console.debug('[Asana Extension] Could not extract email body from Outlook DOM');
+    return undefined;
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting email body from Outlook DOM:', error);
+    return undefined;
+  }
 }
 
 /**
@@ -178,48 +184,54 @@ export function getEmailBody(): string | undefined {
  * @returns The sender email or name, or undefined if not found
  */
 export function getSenderInfo(): string | undefined {
-  // Name selectors (preferred - return name when available)
-  const nameSelectors = [
-    '[data-app-section="FromLine"] span',
-    'span[id*="PersonaName"]',
-    '.OZZZK', // Sender name class
-    '[aria-label*="From"]',
-  ];
+  try {
+    // Name selectors (preferred - return name when available)
+    const nameSelectors = [
+      '[data-app-section="FromLine"] span',
+      'span[id*="PersonaName"]',
+      '.OZZZK', // Sender name class
+      '[aria-label*="From"]',
+    ];
 
-  // Email fallback selectors (use when name not available)
-  const emailSelectors = [
-    '[role="img"][aria-label*="@"]',
-    'button[aria-label*="@"]',
-  ];
+    // Email fallback selectors (use when name not available)
+    const emailSelectors = [
+      '[role="img"][aria-label*="@"]',
+      'button[aria-label*="@"]',
+    ];
 
-  // Try name selectors first
-  for (const selector of nameSelectors) {
-    const element = document.querySelector(selector);
-    if (element && element.textContent) {
-      const text = element.textContent.trim();
-      if (text && text.length > 0 && text.length < 200) {
-        return text;
-      }
-    }
-  }
-
-  // Fall back to email selectors
-  for (const selector of emailSelectors) {
-    const element = document.querySelector(selector);
-    if (element) {
-      // Extract email from aria-label attribute
-      const ariaLabel = element.getAttribute('aria-label');
-      if (ariaLabel) {
-        // Extract email address from aria-label (e.g., "Profile picture of john@example.com")
-        const emailMatch = ariaLabel.match(/[\w.+-]+@[\w.-]+\.\w+/);
-        if (emailMatch) {
-          return emailMatch[0];
+    // Try name selectors first
+    for (const selector of nameSelectors) {
+      const element = document.querySelector(selector);
+      if (element && element.textContent) {
+        const text = element.textContent.trim();
+        if (text && text.length > 0 && text.length < 200) {
+          return text;
         }
       }
     }
-  }
 
-  return undefined;
+    // Fall back to email selectors
+    for (const selector of emailSelectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        // Extract email from aria-label attribute
+        const ariaLabel = element.getAttribute('aria-label');
+        if (ariaLabel) {
+          // Extract email address from aria-label (e.g., "Profile picture of john@example.com")
+          const emailMatch = ariaLabel.match(/[\w.+-]+@[\w.-]+\.\w+/);
+          if (emailMatch) {
+            return emailMatch[0];
+          }
+        }
+      }
+    }
+
+    console.debug('[Asana Extension] Could not extract sender info from Outlook DOM');
+    return undefined;
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting sender info from Outlook DOM:', error);
+    return undefined;
+  }
 }
 
 // =============================================================================
