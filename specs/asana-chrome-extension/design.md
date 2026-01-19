@@ -63,6 +63,7 @@ graph TB
 **Purpose**: Central hub for extension logic, message routing, OAuth, API calls
 
 **Responsibilities**:
+
 - Handle messages from popup and content scripts
 - Manage OAuth token lifecycle (storage, refresh)
 - Execute Asana API calls
@@ -70,19 +71,20 @@ graph TB
 - Coordinate cache operations
 
 **Interfaces**:
+
 ```typescript
 // Message types from popup/content scripts
 type ExtensionMessage =
-  | { type: 'GET_PAGE_INFO' }
-  | { type: 'CREATE_TASK'; payload: CreateTaskPayload }
-  | { type: 'GET_WORKSPACES' }
-  | { type: 'GET_PROJECTS'; workspaceGid: string }
-  | { type: 'GET_SECTIONS'; projectGid: string }
-  | { type: 'GET_TAGS'; workspaceGid: string }
-  | { type: 'REFRESH_CACHE' }
-  | { type: 'GET_AUTH_STATUS' }
-  | { type: 'START_AUTH' }
-  | { type: 'LOGOUT' };
+  | { type: "GET_PAGE_INFO" }
+  | { type: "CREATE_TASK"; payload: CreateTaskPayload }
+  | { type: "GET_WORKSPACES" }
+  | { type: "GET_PROJECTS"; workspaceGid: string }
+  | { type: "GET_SECTIONS"; projectGid: string }
+  | { type: "GET_TAGS"; workspaceGid: string }
+  | { type: "REFRESH_CACHE" }
+  | { type: "GET_AUTH_STATUS" }
+  | { type: "START_AUTH" }
+  | { type: "LOGOUT" };
 
 interface CreateTaskPayload {
   name: string;
@@ -106,6 +108,7 @@ interface CreateTaskResponse {
 **Purpose**: Handle Asana OAuth2 with PKCE flow
 
 **Responsibilities**:
+
 - Generate PKCE code verifier/challenge
 - Launch auth flow via `chrome.identity.launchWebAuthFlow`
 - Exchange auth code for tokens
@@ -113,6 +116,7 @@ interface CreateTaskResponse {
 - Auto-refresh before expiration
 
 **Interfaces**:
+
 ```typescript
 interface OAuthTokens {
   accessToken: string;
@@ -135,6 +139,7 @@ function isAuthenticated(): Promise<boolean>;
 ```
 
 **Token Refresh Strategy**:
+
 ```mermaid
 sequenceDiagram
     participant API as API Call
@@ -158,11 +163,13 @@ sequenceDiagram
 **Purpose**: Wrapper for Asana REST API with caching
 
 **Responsibilities**:
+
 - Execute API calls with auth header
 - Handle rate limiting (429) with exponential backoff
 - Return data with cache integration
 
 **Interfaces**:
+
 ```typescript
 interface AsanaWorkspace {
   gid: string;
@@ -205,11 +212,13 @@ function createTask(payload: CreateTaskPayload): Promise<AsanaTask>;
 **Purpose**: Stale-while-revalidate caching with TTL
 
 **Responsibilities**:
+
 - Store/retrieve cached data with TTL
 - Background refresh for stale data
 - Manual cache invalidation
 
 **Interfaces**:
+
 ```typescript
 interface CacheEntry<T> {
   data: T;
@@ -227,7 +236,7 @@ function setCached<T>(key: string, data: T, ttl?: number): Promise<void>;
 function getOrFetch<T>(
   key: string,
   fetchFn: () => Promise<T>,
-  options?: { forceRefresh?: boolean; backgroundRefresh?: boolean }
+  options?: { forceRefresh?: boolean; backgroundRefresh?: boolean },
 ): Promise<T>;
 function clearCache(): Promise<void>;
 function getCacheStats(): Promise<{ keys: string[]; totalSize: number }>;
@@ -248,6 +257,7 @@ function getCacheStats(): Promise<{ keys: string[]; totalSize: number }>;
 **Purpose**: Extract email messageId and account info from Gmail
 
 **Responsibilities**:
+
 - Detect Gmail page
 - Parse messageId from URL hash
 - Detect current account email address
@@ -255,6 +265,7 @@ function getCacheStats(): Promise<{ keys: string[]; totalSize: number }>;
 - Detect confidential mode
 
 **Interfaces**:
+
 ```typescript
 interface GmailEmailInfo {
   messageId: string | null;
@@ -267,12 +278,13 @@ interface GmailEmailInfo {
 
 // Message to service worker
 interface GmailPageInfo {
-  type: 'GMAIL_PAGE_INFO';
+  type: "GMAIL_PAGE_INFO";
   payload: GmailEmailInfo;
 }
 ```
 
 **URL Parsing Logic**:
+
 ```typescript
 // URL: https://mail.google.com/mail/u/0/#inbox/FMfcgzQXJWDKljhBnBvRJrpZvTdvpTxl
 function parseGmailUrl(url: string): GmailEmailInfo {
@@ -280,11 +292,13 @@ function parseGmailUrl(url: string): GmailEmailInfo {
 
   // Extract userId from path: /mail/u/{userId}/
   const pathMatch = urlObj.pathname.match(/\/mail\/u\/(\d+)/);
-  const userId = pathMatch ? pathMatch[1] : '0';
+  const userId = pathMatch ? pathMatch[1] : "0";
 
   // Extract messageId from hash: #inbox/{messageId} or #all/{messageId}
   const hash = urlObj.hash;
-  const hashMatch = hash.match(/#(?:inbox|all|sent|drafts|search\/[^/]+)\/([A-Za-z0-9_-]+)/);
+  const hashMatch = hash.match(
+    /#(?:inbox|all|sent|drafts|search\/[^/]+)\/([A-Za-z0-9_-]+)/,
+  );
   const messageId = hashMatch ? hashMatch[1] : null;
 
   // Build permanent URL using #all/ for stability
@@ -292,7 +306,7 @@ function parseGmailUrl(url: string): GmailEmailInfo {
     ? `https://mail.google.com/mail/u/${userId}/#all/${messageId}`
     : url;
 
-  return { messageId, userId, permanentUrl, /* ... */ };
+  return { messageId, userId, permanentUrl /* ... */ };
 }
 ```
 
@@ -301,13 +315,15 @@ function parseGmailUrl(url: string): GmailEmailInfo {
 **Purpose**: Extract email ItemID from Outlook variants
 
 **Responsibilities**:
+
 - Detect Outlook variant (live.com, office.com, office365.com)
 - Parse ItemID from URL path
 - Build permanent deep link
 
 **Interfaces**:
+
 ```typescript
-type OutlookVariant = 'personal' | 'business' | 'office365';
+type OutlookVariant = "personal" | "business" | "office365";
 
 interface OutlookEmailInfo {
   itemId: string | null;
@@ -317,12 +333,13 @@ interface OutlookEmailInfo {
 
 // Message to service worker
 interface OutlookPageInfo {
-  type: 'OUTLOOK_PAGE_INFO';
+  type: "OUTLOOK_PAGE_INFO";
   payload: OutlookEmailInfo;
 }
 ```
 
 **URL Parsing Logic**:
+
 ```typescript
 // Personal: https://outlook.live.com/mail/0/inbox/id/{ItemID}
 // Business: https://outlook.office.com/mail/inbox/id/{ItemID}
@@ -333,15 +350,18 @@ function parseOutlookUrl(url: string): OutlookEmailInfo {
   const hostname = urlObj.hostname;
 
   // Determine variant
-  const variant: OutlookVariant =
-    hostname.includes('live.com') ? 'personal' :
-    hostname.includes('office365.com') ? 'office365' : 'business';
+  const variant: OutlookVariant = hostname.includes("live.com")
+    ? "personal"
+    : hostname.includes("office365.com")
+      ? "office365"
+      : "business";
 
   // Extract ItemID from path after /id/
-  const pathParts = urlObj.pathname.split('/id/');
-  const itemId = pathParts.length > 1
-    ? decodeURIComponent(pathParts[1].split('/')[0])
-    : null;
+  const pathParts = urlObj.pathname.split("/id/");
+  const itemId =
+    pathParts.length > 1
+      ? decodeURIComponent(pathParts[1].split("/")[0])
+      : null;
 
   // Build permanent deep link
   const permanentUrl = itemId
@@ -357,15 +377,17 @@ function parseOutlookUrl(url: string): OutlookEmailInfo {
 **Purpose**: Generate task name suggestions via Claude API
 
 **Responsibilities**:
+
 - Call Claude API with page context
 - Handle cancellation
 - Manage API errors gracefully
 
 **Interfaces**:
+
 ```typescript
 interface AIConfig {
   apiKey: string;
-  model: string; // Default: claude-3-haiku-20240307
+  model: string; // Default: claude-haiku-4-5
 }
 
 interface AIInput {
@@ -377,20 +399,21 @@ interface AIInput {
 
 interface AIResult {
   suggestedName: string;
-  confidence?: 'high' | 'medium' | 'low';
+  confidence?: "high" | "medium" | "low";
 }
 
 // Functions
 function generateTaskName(
   input: AIInput,
   config: AIConfig,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<AIResult>;
 
 function isApiKeyValid(apiKey: string): Promise<boolean>;
 ```
 
 **Claude API Call**:
+
 ```typescript
 const SYSTEM_PROMPT = `Generate a concise, actionable task title (5-10 words).
 Output ONLY the task title, no explanation.
@@ -399,24 +422,28 @@ Examples:
 - "Reply to John about project timeline"
 - "Schedule meeting with design team"`;
 
-async function generateTaskName(input: AIInput, config: AIConfig, signal?: AbortSignal): Promise<AIResult> {
+async function generateTaskName(
+  input: AIInput,
+  config: AIConfig,
+  signal?: AbortSignal,
+): Promise<AIResult> {
   const userPrompt = buildUserPrompt(input);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
+      "Content-Type": "application/json",
+      "x-api-key": config.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
       model: config.model,
       max_tokens: 50,
-      messages: [{ role: 'user', content: userPrompt }],
-      system: SYSTEM_PROMPT
+      messages: [{ role: "user", content: userPrompt }],
+      system: SYSTEM_PROMPT,
     }),
-    signal
+    signal,
   });
 
   // ... handle response
@@ -428,6 +455,7 @@ async function generateTaskName(input: AIInput, config: AIConfig, signal?: Abort
 **Purpose**: Task creation form UI
 
 **Responsibilities**:
+
 - Display cached data immediately
 - Handle user input
 - Trigger AI suggestion on open
@@ -435,6 +463,7 @@ async function generateTaskName(input: AIInput, config: AIConfig, signal?: Abort
 - Show success/error states
 
 **State**:
+
 ```typescript
 interface PopupState {
   // Auth
@@ -458,7 +487,7 @@ interface PopupState {
   pageUrl: string;
 
   // AI
-  aiStatus: 'idle' | 'loading' | 'done' | 'error' | 'cancelled';
+  aiStatus: "idle" | "loading" | "done" | "error" | "cancelled";
   aiSuggestion: string | null;
 
   // Page info
@@ -468,12 +497,12 @@ interface PopupState {
   warnings: Warning[];
 
   // Submit status
-  submitStatus: 'idle' | 'submitting' | 'success' | 'error';
+  submitStatus: "idle" | "submitting" | "success" | "error";
   createdTaskUrl: string | null;
 }
 
 interface Warning {
-  type: 'gmail_account_reorder' | 'gmail_confidential';
+  type: "gmail_account_reorder" | "gmail_confidential";
   message: string;
 }
 ```
@@ -523,58 +552,58 @@ sequenceDiagram
 
 ## Technical Decisions
 
-| Decision | Options Considered | Choice | Rationale |
-|----------|-------------------|--------|-----------|
-| Build tool | Webpack, esbuild, Vite | **esbuild** | Fast, simple config, good for extensions |
-| Language | JavaScript, TypeScript | **TypeScript** | Type safety, better IDE support |
-| UI framework | React, Vue, Vanilla | **Vanilla TS** | No build complexity, small bundle, fast |
-| Storage | localStorage, chrome.storage | **chrome.storage.local** | Required for MV3 service workers |
-| OAuth | Asana SDK, manual | **Manual** | SDK OAuth doesn't work in browser context |
-| AI model | Claude Haiku, Claude Sonnet, GPT-4o-mini | **Claude Haiku** | Fast, cheap, sufficient for task names |
-| Gmail extraction | gmail.js, URL parsing | **URL parsing** | No jQuery dependency, more reliable |
-| Testing | Jest, Vitest | **Vitest** | Fast, ESM native, good TS support |
+| Decision         | Options Considered                       | Choice                   | Rationale                                 |
+| ---------------- | ---------------------------------------- | ------------------------ | ----------------------------------------- |
+| Build tool       | Webpack, esbuild, Vite                   | **esbuild**              | Fast, simple config, good for extensions  |
+| Language         | JavaScript, TypeScript                   | **TypeScript**           | Type safety, better IDE support           |
+| UI framework     | React, Vue, Vanilla                      | **Vanilla TS**           | No build complexity, small bundle, fast   |
+| Storage          | localStorage, chrome.storage             | **chrome.storage.local** | Required for MV3 service workers          |
+| OAuth            | Asana SDK, manual                        | **Manual**               | SDK OAuth doesn't work in browser context |
+| AI model         | Claude Haiku, Claude Sonnet, GPT-4o-mini | **Claude Haiku**         | Fast, cheap, sufficient for task names    |
+| Gmail extraction | gmail.js, URL parsing                    | **URL parsing**          | No jQuery dependency, more reliable       |
+| Testing          | Jest, Vitest                             | **Vitest**               | Fast, ESM native, good TS support         |
 
 ## File Structure
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `manifest.json` | Create | Extension manifest (MV3) |
-| `src/background/service-worker.ts` | Create | Main background script |
-| `src/background/oauth.ts` | Create | OAuth2 + PKCE flow |
-| `src/background/asana-api.ts` | Create | Asana API wrapper |
-| `src/background/cache.ts` | Create | Stale-while-revalidate cache |
-| `src/background/context-menu.ts` | Create | Right-click menu handler |
-| `src/content/gmail-content.ts` | Create | Gmail email extraction |
-| `src/content/outlook-content.ts` | Create | Outlook email extraction |
-| `src/popup/popup.html` | Create | Popup UI markup |
-| `src/popup/popup.ts` | Create | Popup UI logic |
-| `src/popup/popup.css` | Create | Popup styles |
-| `src/settings/settings.html` | Create | Settings page markup |
-| `src/settings/settings.ts` | Create | Settings page logic |
-| `src/shared/types.ts` | Create | Shared TypeScript interfaces |
-| `src/shared/storage.ts` | Create | Storage utilities |
-| `src/shared/ai.ts` | Create | Claude API integration |
-| `src/shared/constants.ts` | Create | Shared constants |
-| `package.json` | Create | Dependencies and scripts |
-| `tsconfig.json` | Create | TypeScript config |
-| `esbuild.config.js` | Create | Build configuration |
-| `.env.example` | Create | Environment variables template |
+| File                               | Action | Purpose                        |
+| ---------------------------------- | ------ | ------------------------------ |
+| `manifest.json`                    | Create | Extension manifest (MV3)       |
+| `src/background/service-worker.ts` | Create | Main background script         |
+| `src/background/oauth.ts`          | Create | OAuth2 + PKCE flow             |
+| `src/background/asana-api.ts`      | Create | Asana API wrapper              |
+| `src/background/cache.ts`          | Create | Stale-while-revalidate cache   |
+| `src/background/context-menu.ts`   | Create | Right-click menu handler       |
+| `src/content/gmail-content.ts`     | Create | Gmail email extraction         |
+| `src/content/outlook-content.ts`   | Create | Outlook email extraction       |
+| `src/popup/popup.html`             | Create | Popup UI markup                |
+| `src/popup/popup.ts`               | Create | Popup UI logic                 |
+| `src/popup/popup.css`              | Create | Popup styles                   |
+| `src/settings/settings.html`       | Create | Settings page markup           |
+| `src/settings/settings.ts`         | Create | Settings page logic            |
+| `src/shared/types.ts`              | Create | Shared TypeScript interfaces   |
+| `src/shared/storage.ts`            | Create | Storage utilities              |
+| `src/shared/ai.ts`                 | Create | Claude API integration         |
+| `src/shared/constants.ts`          | Create | Shared constants               |
+| `package.json`                     | Create | Dependencies and scripts       |
+| `tsconfig.json`                    | Create | TypeScript config              |
+| `esbuild.config.js`                | Create | Build configuration            |
+| `.env.example`                     | Create | Environment variables template |
 
 ## Error Handling
 
-| Error Scenario | Handling Strategy | User Impact |
-|----------------|-------------------|-------------|
-| OAuth failure | Show error, retry button | "Authentication failed. Please try again." |
-| Token expired during call | Auto-refresh, retry once | Transparent to user |
-| Asana 429 rate limit | Exponential backoff (1s, 2s, 4s, max 3 retries) | Brief delay, then success or error |
-| Asana API error | Show error message from API | "Failed to create task: [error]" |
-| AI API error | Show error, allow manual entry | "AI suggestion unavailable. Enter name manually." |
-| AI timeout (>5s) | Auto-cancel, allow manual | AI field returns to editable state |
-| Network offline | Detect, disable submit | "You appear to be offline." |
-| Gmail messageId not found | Fall back to current URL | URL field shows current page URL |
-| Outlook ItemID not found | Fall back to current URL | URL field shows current page URL |
-| Cache miss | Show loading, fetch fresh | Brief spinner, then data |
-| Invalid API key | Show settings link | "Invalid Claude API key. Check settings." |
+| Error Scenario            | Handling Strategy                               | User Impact                                       |
+| ------------------------- | ----------------------------------------------- | ------------------------------------------------- |
+| OAuth failure             | Show error, retry button                        | "Authentication failed. Please try again."        |
+| Token expired during call | Auto-refresh, retry once                        | Transparent to user                               |
+| Asana 429 rate limit      | Exponential backoff (1s, 2s, 4s, max 3 retries) | Brief delay, then success or error                |
+| Asana API error           | Show error message from API                     | "Failed to create task: [error]"                  |
+| AI API error              | Show error, allow manual entry                  | "AI suggestion unavailable. Enter name manually." |
+| AI timeout (>5s)          | Auto-cancel, allow manual                       | AI field returns to editable state                |
+| Network offline           | Detect, disable submit                          | "You appear to be offline."                       |
+| Gmail messageId not found | Fall back to current URL                        | URL field shows current page URL                  |
+| Outlook ItemID not found  | Fall back to current URL                        | URL field shows current page URL                  |
+| Cache miss                | Show loading, fetch fresh                       | Brief spinner, then data                          |
+| Invalid API key           | Show settings link                              | "Invalid Claude API key. Check settings."         |
 
 ## Edge Cases
 
@@ -592,59 +621,64 @@ sequenceDiagram
 ## Test Strategy
 
 ### Unit Tests
-| Component | Test Focus | Mocks |
-|-----------|------------|-------|
-| `oauth.ts` | PKCE generation, token refresh logic | `chrome.identity`, `chrome.storage` |
-| `cache.ts` | TTL expiration, stale-while-revalidate | `chrome.storage` |
-| `gmail-content.ts` | URL parsing (all view types) | None (pure functions) |
-| `outlook-content.ts` | URL parsing (all 3 variants) | None (pure functions) |
-| `ai.ts` | API call formatting, error handling | `fetch` |
-| `asana-api.ts` | API call formatting, rate limit handling | `fetch` |
+
+| Component            | Test Focus                               | Mocks                               |
+| -------------------- | ---------------------------------------- | ----------------------------------- |
+| `oauth.ts`           | PKCE generation, token refresh logic     | `chrome.identity`, `chrome.storage` |
+| `cache.ts`           | TTL expiration, stale-while-revalidate   | `chrome.storage`                    |
+| `gmail-content.ts`   | URL parsing (all view types)             | None (pure functions)               |
+| `outlook-content.ts` | URL parsing (all 3 variants)             | None (pure functions)               |
+| `ai.ts`              | API call formatting, error handling      | `fetch`                             |
+| `asana-api.ts`       | API call formatting, rate limit handling | `fetch`                             |
 
 ### Integration Tests
-| Integration Point | Test |
-|-------------------|------|
-| OAuth flow | End-to-end auth with mock Asana |
-| Task creation | Popup -> Service Worker -> Asana API |
-| Cache invalidation | Manual refresh updates UI |
+
+| Integration Point  | Test                                 |
+| ------------------ | ------------------------------------ |
+| OAuth flow         | End-to-end auth with mock Asana      |
+| Task creation      | Popup -> Service Worker -> Asana API |
+| Cache invalidation | Manual refresh updates UI            |
 
 ### E2E Tests (Manual via Claude Browser Extension)
-| User Flow | Steps |
-|-----------|-------|
-| First-time auth | Install -> click icon -> complete OAuth |
-| Create task from Gmail | Open Gmail email -> right-click -> create task -> verify link works |
-| Create task from Outlook | Open Outlook email -> click icon -> create task |
-| AI suggestion | Open popup -> wait for AI -> accept/modify -> submit |
-| Multi-workspace | Switch workspace -> verify projects update |
+
+| User Flow                | Steps                                                               |
+| ------------------------ | ------------------------------------------------------------------- |
+| First-time auth          | Install -> click icon -> complete OAuth                             |
+| Create task from Gmail   | Open Gmail email -> right-click -> create task -> verify link works |
+| Create task from Outlook | Open Outlook email -> click icon -> create task                     |
+| AI suggestion            | Open popup -> wait for AI -> accept/modify -> submit                |
+| Multi-workspace          | Switch workspace -> verify projects update                          |
 
 ## Performance Considerations
 
-| Concern | Mitigation |
-|---------|------------|
-| Popup load time | Cache-first strategy, parallel data fetch |
-| AI latency | Auto-trigger on open, show loading state |
-| Large workspace data | Paginate API calls, lazy-load sections |
-| Service worker cold start | Minimal startup code, lazy-load modules |
-| Storage size | Limit cache TTL, prune old entries |
+| Concern                   | Mitigation                                |
+| ------------------------- | ----------------------------------------- |
+| Popup load time           | Cache-first strategy, parallel data fetch |
+| AI latency                | Auto-trigger on open, show loading state  |
+| Large workspace data      | Paginate API calls, lazy-load sections    |
+| Service worker cold start | Minimal startup code, lazy-load modules   |
+| Storage size              | Limit cache TTL, prune old entries        |
 
 **Target Metrics**:
+
 - Popup interactive: <200ms (from cache)
 - Task creation: <2s
 - AI suggestion: <3s
 
 ## Security Considerations
 
-| Concern | Mitigation |
-|---------|------------|
-| Token storage | `chrome.storage.local` (encrypted at rest by Chrome) |
-| API key storage | Same as tokens, never sent to Asana |
-| XSS in popup | No innerHTML with user data, sanitize inputs |
-| Content script isolation | Minimal permissions, only read URLs |
-| PKCE | Required for OAuth security |
+| Concern                  | Mitigation                                           |
+| ------------------------ | ---------------------------------------------------- |
+| Token storage            | `chrome.storage.local` (encrypted at rest by Chrome) |
+| API key storage          | Same as tokens, never sent to Asana                  |
+| XSS in popup             | No innerHTML with user data, sanitize inputs         |
+| Content script isolation | Minimal permissions, only read URLs                  |
+| PKCE                     | Required for OAuth security                          |
 
 ## Existing Patterns to Follow
 
 Based on research (no existing codebase):
+
 - Use `chrome.runtime.sendMessage` for popup <-> service worker communication
 - Use `chrome.tabs.sendMessage` for service worker <-> content script
 - Follow Asana's official extension example structure (modernized for MV3)
@@ -658,12 +692,7 @@ Based on research (no existing codebase):
   "name": "Asana Task Creator",
   "version": "1.0.0",
   "description": "Create Asana tasks from any web page with AI-powered suggestions",
-  "permissions": [
-    "identity",
-    "storage",
-    "contextMenus",
-    "activeTab"
-  ],
+  "permissions": ["identity", "storage", "contextMenus", "activeTab"],
   "host_permissions": [
     "https://app.asana.com/*",
     "https://api.anthropic.com/*"

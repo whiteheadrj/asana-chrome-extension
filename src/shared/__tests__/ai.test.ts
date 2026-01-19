@@ -26,7 +26,7 @@ function createClaudeResponse(text: string) {
     type: 'message',
     role: 'assistant',
     content: [{ type: 'text', text }],
-    model: 'claude-3-haiku-20240307',
+    model: 'claude-haiku-4-5',
     stop_reason: 'end_turn',
     stop_sequence: null,
     usage: { input_tokens: 10, output_tokens: 5 },
@@ -63,7 +63,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Review Q4 budget proposal');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-api-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-api-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Budget Review' };
 
       const result = await generateTaskName(input, config);
@@ -76,7 +76,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('"Follow up on invoice #1234"');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-api-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-api-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { emailSubject: 'Invoice' };
 
       const result = await generateTaskName(input, config);
@@ -88,7 +88,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'my-api-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'my-api-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       await generateTaskName(input, config);
@@ -111,7 +111,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test Page' };
 
       await generateTaskName(input, config);
@@ -119,7 +119,7 @@ describe('AI module', () => {
       const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body as string);
 
-      expect(body.model).toBe('claude-3-haiku-20240307');
+      expect(body.model).toBe('claude-haiku-4-5');
       expect(body.max_tokens).toBe(50);
       expect(body.messages).toHaveLength(1);
       expect(body.messages[0].role).toBe('user');
@@ -138,14 +138,14 @@ describe('AI module', () => {
       const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
       const body = JSON.parse(fetchCall[1].body as string);
 
-      expect(body.model).toBe('claude-3-haiku-20240307');
+      expect(body.model).toBe('claude-haiku-4-5');
     });
 
     it('returns high confidence for email subject input', async () => {
       const mockResponse = createClaudeResponse('Reply to email');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { emailSubject: 'Important Meeting' };
 
       const result = await generateTaskName(input, config);
@@ -157,7 +157,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Review document');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { selectedText: 'This is a longer piece of selected text that provides context' };
 
       const result = await generateTaskName(input, config);
@@ -169,7 +169,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Visit page');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Some Page' };
 
       const result = await generateTaskName(input, config);
@@ -181,7 +181,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Generic task');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = {};
 
       const result = await generateTaskName(input, config);
@@ -202,7 +202,7 @@ describe('AI module', () => {
         configurable: true,
       });
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -211,7 +211,7 @@ describe('AI module', () => {
     });
 
     it('returns null when API key is empty', async () => {
-      const config: AIConfig = { apiKey: '', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: '', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -221,7 +221,7 @@ describe('AI module', () => {
     });
 
     it('returns null when API key is whitespace', async () => {
-      const config: AIConfig = { apiKey: '   ', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: '   ', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -236,7 +236,7 @@ describe('AI module', () => {
       };
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(errorResponse, false, 401));
 
-      const config: AIConfig = { apiKey: 'invalid-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'invalid-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -247,7 +247,7 @@ describe('AI module', () => {
     it('returns null on 500 server error', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse({}, false, 500));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -258,7 +258,7 @@ describe('AI module', () => {
     it('returns null on network error', async () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -272,14 +272,14 @@ describe('AI module', () => {
         type: 'message',
         role: 'assistant',
         content: [],
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5',
         stop_reason: 'end_turn',
         stop_sequence: null,
         usage: { input_tokens: 10, output_tokens: 0 },
       };
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(emptyResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -293,14 +293,14 @@ describe('AI module', () => {
         type: 'message',
         role: 'assistant',
         content: [{ type: 'other', data: 'something' }],
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5',
         stop_reason: 'end_turn',
         stop_sequence: null,
         usage: { input_tokens: 10, output_tokens: 5 },
       };
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(noTextResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       const result = await generateTaskName(input, config);
@@ -325,7 +325,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { emailBody: 'Meeting tomorrow at 3pm to discuss budget' };
 
       await generateTaskName(input, config);
@@ -339,7 +339,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { emailSender: 'John Smith' };
 
       await generateTaskName(input, config);
@@ -352,7 +352,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = {
         pageContent: 'This is the main content of the web page',
         contentType: 'webpage',
@@ -369,7 +369,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = {
         pageContent: 'This should not appear in the prompt',
         contentType: 'email',
@@ -388,7 +388,7 @@ describe('AI module', () => {
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
       const longEmailBody = 'A'.repeat(1500);
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { emailBody: longEmailBody };
 
       await generateTaskName(input, config);
@@ -405,7 +405,7 @@ describe('AI module', () => {
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
       const longPageContent = 'B'.repeat(2500);
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageContent: longPageContent, contentType: 'webpage' };
 
       await generateTaskName(input, config);
@@ -421,7 +421,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = {
         selectedText: 'User selected this text',
         emailBody: 'Email body content',
@@ -445,7 +445,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = {
         emailSubject: 'Meeting Request',
         pageTitle: 'Meeting Request', // Same as emailSubject
@@ -464,7 +464,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Task name');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = {
         emailSubject: 'Meeting Request',
         pageTitle: 'Gmail - Inbox', // Different from emailSubject
@@ -483,7 +483,7 @@ describe('AI module', () => {
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
       const longSelectedText = 'C'.repeat(800);
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { selectedText: longSelectedText };
 
       await generateTaskName(input, config);
@@ -505,7 +505,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Review meeting notes');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       // emailBody with 60 characters (> 50)
       const input: AIInput = { emailBody: 'A'.repeat(60) };
 
@@ -518,7 +518,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Check email');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       // emailBody with exactly 50 characters (not > 50)
       const input: AIInput = { emailBody: 'A'.repeat(50), pageTitle: 'Inbox' };
 
@@ -531,7 +531,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Review message');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       // emailBody with exactly 51 characters (> 50 boundary)
       const input: AIInput = { emailBody: 'A'.repeat(51) };
 
@@ -544,7 +544,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Reply to email');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { emailSubject: 'Q4 Budget Meeting' };
 
       const result = await generateTaskName(input, config);
@@ -556,7 +556,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Process request');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       // selectedText > 20 chars should be high confidence
       const input: AIInput = { selectedText: 'This is selected text with more than twenty characters' };
 
@@ -569,7 +569,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Check item');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       // selectedText exactly 20 chars (not > 20)
       const input: AIInput = { selectedText: '12345678901234567890', pageTitle: 'Page' };
 
@@ -582,7 +582,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Follow up on email');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = {
         emailSubject: 'Project Update',
         emailBody: 'A'.repeat(100),
@@ -597,7 +597,7 @@ describe('AI module', () => {
       const mockResponse = createClaudeResponse('Review');
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       // Short emailBody (30 chars), has pageTitle so not low
       const input: AIInput = { emailBody: 'Short email body content here.', pageTitle: 'Gmail' };
 
@@ -617,7 +617,7 @@ describe('AI module', () => {
       globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
 
       const controller = new AbortController();
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       await generateTaskName(input, config, controller.signal);
@@ -635,7 +635,7 @@ describe('AI module', () => {
       globalThis.fetch = vi.fn().mockRejectedValue(abortError);
 
       const controller = new AbortController();
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       await expect(generateTaskName(input, config, controller.signal))
@@ -646,7 +646,7 @@ describe('AI module', () => {
       const abortError = new DOMException('The operation was aborted', 'AbortError');
       globalThis.fetch = vi.fn().mockRejectedValue(abortError);
 
-      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       const input: AIInput = { pageTitle: 'Test' };
 
       try {

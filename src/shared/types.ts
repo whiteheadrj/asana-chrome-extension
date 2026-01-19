@@ -162,7 +162,7 @@ export interface GenericPageInfo {
 
 export interface AIConfig {
   apiKey: string;
-  model: string; // Default: claude-3-haiku-20240307
+  model: string; // Default: claude-haiku-4-5
 }
 
 export interface AIInput {

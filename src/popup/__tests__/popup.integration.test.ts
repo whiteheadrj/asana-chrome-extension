@@ -186,7 +186,7 @@ describe('Popup Integration Tests - Gmail Flow', () => {
       const aiInput = simulateGmailPopupFlow(gmailInfo);
 
       // Simulate calling generateTaskName with the built AIInput
-      const mockConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const mockConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
       await generateTaskName(aiInput, mockConfig);
 
       // Verify generateTaskName was called with correct input
@@ -208,7 +208,7 @@ describe('Popup Integration Tests - Gmail Flow', () => {
         emailSender: 'Project Manager <pm@company.com>',
       });
       const aiInput = simulateGmailPopupFlow(gmailInfo);
-      const mockConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const mockConfig = { apiKey: 'test-key', model: 'claude-haiku-4-5' };
 
       const result = await generateTaskName(aiInput, mockConfig);
 
