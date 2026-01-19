@@ -709,7 +709,7 @@ After POC validated, clean up code structure.
   - **Done when**: CI pipeline shows all green
   - **Commit**: None
 
-- [ ] 4.5 Create PR with summary
+- [x] 4.5 Create PR with summary
   - **Do**:
     1. Create PR: `gh pr create --title "feat: Asana Chrome Extension" --body "<summary>"`
     2. Include: feature list, test coverage, how to test manually
