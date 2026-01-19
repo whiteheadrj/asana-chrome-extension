@@ -37,29 +37,50 @@ const ANTHROPIC_VERSION = '2023-06-01';
 // =============================================================================
 
 /**
+ * Truncate text to a maximum length, adding ellipsis if truncated
+ */
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return text.substring(0, maxLength) + '...';
+}
+
+/**
  * Build user prompt from input context
+ * Priority order: selectedText > emailSubject > emailBody > pageContent
  */
 function buildUserPrompt(input: AIInput): string {
   const parts: string[] = [];
 
+  // Highest priority: Selected text (explicit user intent)
+  if (input.selectedText) {
+    parts.push(`Selected text (primary): ${truncate(input.selectedText, 500)}`);
+  }
+
+  // Email subject
   if (input.emailSubject) {
     parts.push(`Email subject: ${input.emailSubject}`);
   }
 
-  if (input.pageTitle) {
-    // Truncate long titles
-    const truncatedTitle = input.pageTitle.length > 100
-      ? input.pageTitle.substring(0, 100) + '...'
-      : input.pageTitle;
-    parts.push(`Page title: ${truncatedTitle}`);
+  // Email sender
+  if (input.emailSender) {
+    parts.push(`From: ${input.emailSender}`);
   }
 
-  if (input.selectedText) {
-    // Truncate long selections
-    const truncatedSelection = input.selectedText.length > 500
-      ? input.selectedText.substring(0, 500) + '...'
-      : input.selectedText;
-    parts.push(`Selected text: ${truncatedSelection}`);
+  // Email body content
+  if (input.emailBody) {
+    parts.push(`Email content: ${truncate(input.emailBody, 1000)}`);
+  }
+
+  // Page title (skip if equals emailSubject to avoid duplication)
+  if (input.pageTitle && input.pageTitle !== input.emailSubject) {
+    parts.push(`Page title: ${truncate(input.pageTitle, 100)}`);
+  }
+
+  // Page content (only for webpages, not emails)
+  if (input.pageContent && input.contentType === 'webpage') {
+    parts.push(`Page content: ${truncate(input.pageContent, 2000)}`);
   }
 
   if (input.pageUrl) {

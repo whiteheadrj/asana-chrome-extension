@@ -249,7 +249,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-9, AC-6.1, AC-6.2, AC-6.3, AC-6.4_
   - _Design: AI Module (ai.ts) section_
 
-- [ ] 1.16 Update buildUserPrompt() for new fields
+- [x] 1.16 Update buildUserPrompt() for new fields
   - **Do**:
     1. Add priority order logic: selectedText > emailSubject > emailBody > pageContent
     2. If selectedText present, add as "Selected text (primary): {truncated to 500}"
