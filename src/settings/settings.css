@@ -1,0 +1,426 @@
+/* =============================================================================
+   Asana Task Creator Settings Styles
+   ============================================================================= */
+
+/* CSS Variables - matches popup.css for consistency */
+:root {
+  /* Colors - Asana-inspired palette */
+  --color-primary: #6d5bd0;
+  --color-primary-hover: #5a4bb5;
+  --color-primary-light: #f0edff;
+  --color-secondary: #1e1f21;
+  --color-text: #1e1f21;
+  --color-text-muted: #6d6e6f;
+  --color-border: #cfcfcf;
+  --color-border-focus: #6d5bd0;
+  --color-background: #ffffff;
+  --color-background-hover: #f6f6f6;
+  --color-background-section: #fafafa;
+  --color-error: #e8384f;
+  --color-error-light: #fff0f1;
+  --color-success: #36b37e;
+  --color-success-light: #e3fcef;
+  --color-warning: #fd9a00;
+  --color-warning-light: #fff8e6;
+  --color-danger: #e8384f;
+  --color-danger-hover: #cf2c3f;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+  --font-size-2xl: 24px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+}
+
+/* Reset & Base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background-color: var(--color-background-section);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* =============================================================================
+   Container
+   ============================================================================= */
+
+.settings-container {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: var(--spacing-2xl);
+}
+
+/* =============================================================================
+   Header
+   ============================================================================= */
+
+.settings-header {
+  margin-bottom: var(--spacing-xl);
+  padding-bottom: var(--spacing-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-header h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  color: var(--color-secondary);
+}
+
+/* =============================================================================
+   Status Messages
+   ============================================================================= */
+
+.status-message {
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+}
+
+.status-message.success {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.status-message.error {
+  background-color: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* =============================================================================
+   Settings Form
+   ============================================================================= */
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+}
+
+/* =============================================================================
+   Settings Sections
+   ============================================================================= */
+
+.settings-section {
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+}
+
+.settings-section h2 {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--color-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.section-description {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-lg);
+}
+
+/* =============================================================================
+   Form Groups
+   ============================================================================= */
+
+.form-group {
+  margin-bottom: var(--spacing-lg);
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: var(--spacing-xs);
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-xs);
+}
+
+.field-hint a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.field-hint a:hover {
+  text-decoration: underline;
+}
+
+/* =============================================================================
+   Input Styles
+   ============================================================================= */
+
+input[type="text"],
+input[type="password"],
+select {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+input[type="text"]:focus,
+input[type="password"]:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236d6e6f' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--spacing-md) center;
+  padding-right: calc(var(--spacing-md) * 2 + 12px);
+}
+
+/* Password input with toggle */
+.password-input-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-container input {
+  padding-right: 44px;
+}
+
+.toggle-visibility-button {
+  position: absolute;
+  right: var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background-color: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.toggle-visibility-button:hover {
+  background-color: var(--color-background-hover);
+  color: var(--color-text);
+}
+
+.toggle-visibility-button .icon-hide {
+  display: none;
+}
+
+.toggle-visibility-button.showing .icon-show {
+  display: none;
+}
+
+.toggle-visibility-button.showing .icon-hide {
+  display: block;
+}
+
+/* =============================================================================
+   Keyboard Shortcut Display
+   ============================================================================= */
+
+.shortcut-display {
+  display: inline-block;
+}
+
+kbd {
+  display: inline-block;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  background-color: var(--color-background-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+/* =============================================================================
+   Account Status
+   ============================================================================= */
+
+.account-status {
+  margin-bottom: var(--spacing-lg);
+}
+
+.account-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.connected {
+  background-color: var(--color-success);
+}
+
+.status-dot.disconnected {
+  background-color: var(--color-text-muted);
+}
+
+/* =============================================================================
+   Buttons
+   ============================================================================= */
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: white;
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.primary-button:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+}
+
+.primary-button:disabled {
+  background-color: var(--color-border);
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.secondary-button:hover:not(:disabled) {
+  background-color: var(--color-background-hover);
+  border-color: var(--color-text-muted);
+}
+
+.secondary-button:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-danger);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.danger-button:hover:not(:disabled) {
+  background-color: var(--color-danger);
+  color: white;
+}
+
+.danger-button:disabled {
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+}
+
+/* =============================================================================
+   Form Actions
+   ============================================================================= */
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
+
+@media (max-width: 640px) {
+  .settings-container {
+    padding: var(--spacing-lg);
+  }
+
+  .settings-section {
+    padding: var(--spacing-lg);
+  }
+}

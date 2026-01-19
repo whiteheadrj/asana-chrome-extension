@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=400, initial-scale=1.0">
+  <title>Create Asana Task</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <h1>Create Asana Task</h1>
+      <button id="refresh-cache" class="icon-button" title="Refresh data from Asana">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 4v6h-6M1 20v-6h6"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Auth Section (shown when not authenticated) -->
+    <section id="auth-section" class="section hidden">
+      <p class="auth-message">Connect your Asana account to create tasks.</p>
+      <button id="login-button" class="primary-button">Connect to Asana</button>
+    </section>
+
+    <!-- Loading State -->
+    <section id="loading-section" class="section hidden">
+      <div class="loading-spinner"></div>
+      <p class="loading-text">Loading...</p>
+    </section>
+
+    <!-- Error Message Area -->
+    <div id="error-message" class="error-message hidden"></div>
+
+    <!-- Warning Messages Area -->
+    <div id="warnings-container" class="warnings-container hidden"></div>
+
+    <!-- Main Form (shown when authenticated) -->
+    <form id="task-form" class="task-form hidden">
+      <!-- Task Name with AI Indicator -->
+      <div class="form-group">
+        <label for="task-name">
+          Task Name
+          <span id="ai-indicator" class="ai-indicator hidden">
+            <span class="ai-loading">AI generating...</span>
+            <button type="button" id="cancel-ai" class="cancel-ai-button" title="Cancel AI">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </span>
+          <span id="ai-badge" class="ai-badge hidden">AI suggested</span>
+        </label>
+        <input
+          type="text"
+          id="task-name"
+          name="taskName"
+          placeholder="Enter task name..."
+          required
+          autocomplete="off"
+        >
+      </div>
+
+      <!-- Notes -->
+      <div class="form-group">
+        <label for="task-notes">Notes (optional)</label>
+        <textarea
+          id="task-notes"
+          name="taskNotes"
+          placeholder="Add any notes..."
+          rows="3"
+        ></textarea>
+      </div>
+
+      <!-- URL -->
+      <div class="form-group">
+        <label for="task-url">URL</label>
+        <input
+          type="url"
+          id="task-url"
+          name="pageUrl"
+          placeholder="Page URL"
+          readonly
+        >
+      </div>
+
+      <!-- Workspace Dropdown -->
+      <div class="form-group">
+        <label for="workspace-select">Workspace</label>
+        <select id="workspace-select" name="workspaceGid" required>
+          <option value="">Select workspace...</option>
+        </select>
+      </div>
+
+      <!-- Project Dropdown -->
+      <div class="form-group">
+        <label for="project-select">Project</label>
+        <select id="project-select" name="projectGid" required disabled>
+          <option value="">Select project...</option>
+        </select>
+      </div>
+
+      <!-- Section Dropdown -->
+      <div class="form-group">
+        <label for="section-select">Section (optional)</label>
+        <select id="section-select" name="sectionGid" disabled>
+          <option value="">No section</option>
+        </select>
+      </div>
+
+      <!-- Tags Multi-Select -->
+      <div class="form-group">
+        <label for="tags-select">Tags (optional)</label>
+        <div class="tags-container">
+          <div id="selected-tags" class="selected-tags"></div>
+          <select id="tags-select" name="tagGids" disabled>
+            <option value="">Add tag...</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="form-actions">
+        <button type="submit" id="submit-button" class="primary-button" disabled>
+          <span class="button-text">Create Task</span>
+          <span class="button-loading hidden">
+            <span class="loading-spinner-small"></span>
+            Creating...
+          </span>
+        </button>
+        <span class="keyboard-hint">Ctrl+Enter to submit</span>
+      </div>
+    </form>
+
+    <!-- Success State -->
+    <section id="success-section" class="section hidden">
+      <div class="success-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      </div>
+      <h2>Task Created!</h2>
+      <a id="task-link" href="#" target="_blank" class="task-link">Open in Asana</a>
+      <button id="create-another" class="secondary-button">Create Another Task</button>
+    </section>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
