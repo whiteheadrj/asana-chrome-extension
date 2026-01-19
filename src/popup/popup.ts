@@ -90,6 +90,7 @@ interface PopupLocalState {
   emailBody?: string;
   emailSender?: string;
   contentType?: 'email' | 'webpage';
+  pageContent?: string; // For non-email pages (up to 2000 chars)
   // Warnings
   warnings: Warning[];
 }
@@ -112,6 +113,7 @@ const state: PopupLocalState = {
   emailBody: undefined,
   emailSender: undefined,
   contentType: undefined,
+  pageContent: undefined,
   // Warnings
   warnings: [],
 };
@@ -276,6 +278,29 @@ function isOutlookPage(url: string): boolean {
 }
 
 /**
+ * Extract page content from non-email pages using chrome.scripting.executeScript
+ * Truncates to 2000 chars, returns undefined on failure
+ */
+async function extractPageContent(tabId: number): Promise<string | undefined> {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => document.body.innerText,
+    });
+
+    if (results && results.length > 0 && results[0].result) {
+      const content = results[0].result as string;
+      // Truncate to 2000 chars
+      return content.length > 2000 ? content.substring(0, 2000) : content;
+    }
+    return undefined;
+  } catch (error) {
+    console.debug('Failed to extract page content:', error);
+    return undefined;
+  }
+}
+
+/**
  * Request page info from the content script
  */
 async function requestPageInfo(): Promise<void> {
@@ -331,6 +356,9 @@ async function requestPageInfo(): Promise<void> {
       // Not an email page, use current URL and document title
       state.pageUrl = currentUrl;
       state.contentType = 'webpage';
+
+      // Extract page content for non-email pages
+      state.pageContent = await extractPageContent(tab.id);
     }
 
     // Populate URL field

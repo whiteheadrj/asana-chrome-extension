@@ -186,7 +186,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-7, FR-12_
   - _Design: Popup (popup.ts) section_
 
-- [ ] 1.13 Add page content extraction for non-email pages
+- [x] 1.13 Add page content extraction for non-email pages
   - **Do**:
     1. Create `extractPageContent(tabId: number): Promise<string | undefined>` function
     2. Use `chrome.scripting.executeScript` to get `document.body.innerText`
