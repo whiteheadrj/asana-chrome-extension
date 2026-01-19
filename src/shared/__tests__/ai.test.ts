@@ -310,6 +310,193 @@ describe('AI module', () => {
   });
 
   // ===========================================================================
+  // buildUserPrompt - new fields (emailBody, emailSender, pageContent)
+  // ===========================================================================
+
+  describe('buildUserPrompt - new fields', () => {
+    // Helper to extract the user prompt from fetch call body
+    function extractUserPrompt(): string {
+      const fetchCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(fetchCall[1].body as string);
+      return body.messages[0].content;
+    }
+
+    it('includes emailBody in prompt when present', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = { emailBody: 'Meeting tomorrow at 3pm to discuss budget' };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      expect(prompt).toContain('Email content:');
+      expect(prompt).toContain('Meeting tomorrow at 3pm to discuss budget');
+    });
+
+    it('includes emailSender in prompt when present', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = { emailSender: 'John Smith' };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      expect(prompt).toContain('From: John Smith');
+    });
+
+    it('includes pageContent for webpage contentType', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = {
+        pageContent: 'This is the main content of the web page',
+        contentType: 'webpage',
+      };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      expect(prompt).toContain('Page content:');
+      expect(prompt).toContain('This is the main content of the web page');
+    });
+
+    it('does not include pageContent for email contentType', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = {
+        pageContent: 'This should not appear in the prompt',
+        contentType: 'email',
+        emailSubject: 'Test email',
+      };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      expect(prompt).not.toContain('Page content:');
+      expect(prompt).not.toContain('This should not appear');
+    });
+
+    it('truncates emailBody at 1000 chars', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const longEmailBody = 'A'.repeat(1500);
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = { emailBody: longEmailBody };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      // Should contain truncated content (1000 chars + '...')
+      expect(prompt).toContain('A'.repeat(1000) + '...');
+      // Should NOT contain the full 1500-char string
+      expect(prompt).not.toContain('A'.repeat(1001));
+    });
+
+    it('truncates pageContent at 2000 chars', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const longPageContent = 'B'.repeat(2500);
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = { pageContent: longPageContent, contentType: 'webpage' };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      // Should contain truncated content (2000 chars + '...')
+      expect(prompt).toContain('B'.repeat(2000) + '...');
+      // Should NOT contain the full 2500-char string
+      expect(prompt).not.toContain('B'.repeat(2001));
+    });
+
+    it('selectedText takes priority and is labeled as primary', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = {
+        selectedText: 'User selected this text',
+        emailBody: 'Email body content',
+        emailSubject: 'Subject line',
+        pageContent: 'Page content',
+        contentType: 'email',
+      };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      // selectedText should be present and labeled as primary
+      expect(prompt).toContain('Selected text (primary):');
+      expect(prompt).toContain('User selected this text');
+      // Other fields should also be included
+      expect(prompt).toContain('Email subject: Subject line');
+      expect(prompt).toContain('Email content:');
+    });
+
+    it('skips pageTitle when equals emailSubject', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = {
+        emailSubject: 'Meeting Request',
+        pageTitle: 'Meeting Request', // Same as emailSubject
+      };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      // Should include emailSubject
+      expect(prompt).toContain('Email subject: Meeting Request');
+      // Should NOT include pageTitle since it equals emailSubject
+      expect(prompt).not.toContain('Page title:');
+    });
+
+    it('includes pageTitle when different from emailSubject', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = {
+        emailSubject: 'Meeting Request',
+        pageTitle: 'Gmail - Inbox', // Different from emailSubject
+      };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      // Should include both
+      expect(prompt).toContain('Email subject: Meeting Request');
+      expect(prompt).toContain('Page title: Gmail - Inbox');
+    });
+
+    it('truncates selectedText at 500 chars', async () => {
+      const mockResponse = createClaudeResponse('Task name');
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse(mockResponse));
+
+      const longSelectedText = 'C'.repeat(800);
+      const config: AIConfig = { apiKey: 'test-key', model: 'claude-3-haiku-20240307' };
+      const input: AIInput = { selectedText: longSelectedText };
+
+      await generateTaskName(input, config);
+
+      const prompt = extractUserPrompt();
+      // Should contain truncated content (500 chars + '...')
+      expect(prompt).toContain('C'.repeat(500) + '...');
+      // Should NOT contain the full 800-char string
+      expect(prompt).not.toContain('C'.repeat(501));
+    });
+  });
+
+  // ===========================================================================
   // generateTaskName - AbortSignal Cancellation
   // ===========================================================================
 

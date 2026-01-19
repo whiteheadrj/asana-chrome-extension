@@ -407,7 +407,7 @@ After POC validated, clean up code.
 
 ### Unit Tests for AI Module
 
-- [ ] 3.4 Unit tests for buildUserPrompt() with new fields
+- [x] 3.4 Unit tests for buildUserPrompt() with new fields
   - **Do**:
     1. Add test cases in ai.test.ts
     2. Test: includes emailBody when present
