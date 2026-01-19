@@ -111,6 +111,8 @@ export interface GmailEmailInfo {
   permanentUrl: string;
   isConfidentialMode: boolean;
   subject?: string;
+  emailBody?: string;
+  emailSender?: string;
   warnings?: Warning[]; // Edge case warnings (account reorder, confidential mode)
 }
 

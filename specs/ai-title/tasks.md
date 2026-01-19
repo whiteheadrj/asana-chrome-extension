@@ -26,7 +26,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-5_
   - _Design: Types (types.ts) section_
 
-- [ ] 1.2 Extend GmailEmailInfo type
+- [x] 1.2 Extend GmailEmailInfo type
   - **Do**:
     1. Add `emailBody?: string` to GmailEmailInfo interface
     2. Add `emailSender?: string` to GmailEmailInfo interface
