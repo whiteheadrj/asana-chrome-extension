@@ -92,7 +92,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-1, FR-3_
   - _Design: Gmail Content Script section_
 
-- [ ] V1 [VERIFY] Quality checkpoint: types and Gmail changes
+- [x] V1 [VERIFY] Quality checkpoint: types and Gmail changes
   - **Do**: Run quality commands to verify types and Gmail changes compile
   - **Verify**: `pnpm check-types && pnpm lint`
   - **Done when**: No type errors, no lint errors
