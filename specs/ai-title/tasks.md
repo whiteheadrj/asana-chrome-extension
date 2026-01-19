@@ -367,7 +367,7 @@ After POC validated, clean up code.
   - _Requirements: AC-1.1_
   - _Design: Test Strategy - gmail-content.test.ts_
 
-- [ ] 3.2 Unit tests for getEmailSender() in Gmail
+- [x] 3.2 Unit tests for getEmailSender() in Gmail
   - **Do**:
     1. Add test cases for sender extraction
     2. Test: extracts sender name from `span.gD`

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseGmailUrl, getEmailBody } from '../gmail-content.js';
+import { parseGmailUrl, getEmailBody, getEmailSender } from '../gmail-content.js';
 
 // =============================================================================
 // getEmailBody Tests
@@ -176,6 +176,166 @@ describe('getEmailBody', () => {
       });
 
       const result = getEmailBody();
+      expect(result).toBeUndefined();
+
+      mockQuerySelector.mockRestore();
+    });
+  });
+});
+
+// =============================================================================
+// getEmailSender Tests
+// =============================================================================
+
+describe('getEmailSender', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    // Set up mock DOM
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    // Clean up DOM
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (span.gD)', () => {
+    it('extracts sender name from span.gD textContent', () => {
+      mockContainer.innerHTML = `
+        <span class="gD">John Smith</span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('John Smith');
+    });
+
+    it('extracts email from span.gD email attribute when no textContent', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="john.smith@example.com"></span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('john.smith@example.com');
+    });
+
+    it('prefers textContent over email attribute (name over raw email)', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="john.smith@example.com">John Smith</span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('John Smith');
+    });
+
+    it('trims whitespace from sender name', () => {
+      mockContainer.innerHTML = `
+        <span class="gD">   Jane Doe   </span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('Jane Doe');
+    });
+  });
+
+  describe('fallback selector ([email])', () => {
+    it('extracts email from [email] attribute when span.gD fails', () => {
+      mockContainer.innerHTML = `
+        <div email="sender@company.org"></div>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('sender@company.org');
+    });
+
+    it('uses span.gD when both are present', () => {
+      mockContainer.innerHTML = `
+        <span class="gD">Primary Sender</span>
+        <div email="fallback@example.com"></div>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('Primary Sender');
+    });
+  });
+
+  describe('tertiary selector (span[data-hovercard-id])', () => {
+    it('extracts email from data-hovercard-id attribute', () => {
+      mockContainer.innerHTML = `
+        <span data-hovercard-id="contact@domain.net"></span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('contact@domain.net');
+    });
+
+    it('extracts email using regex match from data-hovercard-id', () => {
+      mockContainer.innerHTML = `
+        <span data-hovercard-id="user_id:alice@test.com:12345"></span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('alice@test.com');
+    });
+
+    it('returns hovercard ID if it contains @ but no email pattern matched', () => {
+      mockContainer.innerHTML = `
+        <span data-hovercard-id="@handle"></span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBe('@handle');
+    });
+  });
+
+  describe('no selectors match', () => {
+    it('returns undefined when all selectors fail', () => {
+      mockContainer.innerHTML = `
+        <div class="other-class">
+          Not a sender element.
+        </div>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when container is empty', () => {
+      mockContainer.innerHTML = '';
+
+      const result = getEmailSender();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when span.gD has no textContent and no email attribute', () => {
+      mockContainer.innerHTML = `
+        <span class="gD"></span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when span.gD has only whitespace', () => {
+      mockContainer.innerHTML = `
+        <span class="gD">   </span>
+      `;
+
+      const result = getEmailSender();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns undefined on DOM query error', () => {
+      // Mock document.querySelector to throw
+      const mockQuerySelector = vi.spyOn(document, 'querySelector').mockImplementation(() => {
+        throw new Error('DOM error');
+      });
+
+      const result = getEmailSender();
       expect(result).toBeUndefined();
 
       mockQuerySelector.mockRestore();
