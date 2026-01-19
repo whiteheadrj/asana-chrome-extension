@@ -28,7 +28,7 @@ Examples:
 - Invoice approval request -> "Approve invoice #4521 for John"
 - PR review notification -> "Review PR #123 - authentication fix"`;
 
-const DEFAULT_MODEL = 'claude-3-haiku-20240307';
+const DEFAULT_MODEL = 'claude-haiku-4-5';
 const MAX_TOKENS = 50;
 const ANTHROPIC_VERSION = '2023-06-01';
 
