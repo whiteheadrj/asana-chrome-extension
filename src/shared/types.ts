@@ -165,6 +165,10 @@ export interface AIInput {
   selectedText?: string;
   emailSubject?: string;
   pageUrl?: string;
+  emailBody?: string; // truncated to 1000 chars
+  emailSender?: string; // sender name or email
+  pageContent?: string; // for non-email pages, up to 2000 chars
+  contentType?: 'email' | 'webpage'; // helps prompt strategy
 }
 
 export interface AIResult {
