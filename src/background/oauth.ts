@@ -17,7 +17,7 @@ import {
   wrapFetchError,
   wrapResponseError,
 } from '../shared/errors';
-import { ASANA_CLIENT_ID } from '../config';
+import { ASANA_CLIENT_ID, ASANA_CLIENT_SECRET } from '../config';
 
 // =============================================================================
 // Constants
@@ -26,8 +26,9 @@ import { ASANA_CLIENT_ID } from '../config';
 const ASANA_OAUTH_BASE = 'https://app.asana.com/-/oauth_authorize';
 const ASANA_TOKEN_ENDPOINT = 'https://app.asana.com/-/oauth_token';
 
-// Client ID imported from config.ts (see config.ts for setup instructions)
+// Client credentials imported from config.ts (see config.ts for setup instructions)
 const CLIENT_ID = ASANA_CLIENT_ID;
+const CLIENT_SECRET = ASANA_CLIENT_SECRET;
 
 // =============================================================================
 // PKCE Helpers
@@ -69,9 +70,49 @@ export async function generateCodeChallenge(verifier: string): Promise<string> {
 // OAuth Flow
 // =============================================================================
 
+// Store pending auth state for callback-based flow
+let pendingAuthState: {
+  codeVerifier: string;
+  redirectUrl: string;
+  resolve: (value: boolean) => void;
+  reject: (error: Error) => void;
+} | null = null;
+
 /**
- * Start the OAuth authorization flow using Chrome's identity API
- * Opens a popup for Asana login and handles the authorization code exchange
+ * Get the OAuth callback URL (extension page)
+ */
+function getCallbackUrl(): string {
+  return chrome.runtime.getURL('oauth-callback/callback.html');
+}
+
+/**
+ * Handle OAuth callback message from the callback page
+ * This is called by the service worker message handler
+ */
+export async function handleOAuthCallback(code: string): Promise<{ success: boolean; error?: string }> {
+  if (!pendingAuthState) {
+    return { success: false, error: 'No pending authentication' };
+  }
+
+  const { codeVerifier, redirectUrl, resolve, reject } = pendingAuthState;
+  pendingAuthState = null;
+
+  try {
+    // Exchange code for tokens
+    const tokens = await exchangeCodeForTokens(code, codeVerifier, redirectUrl);
+    await setTokens(tokens);
+    resolve(true);
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Token exchange failed';
+    reject(error instanceof Error ? error : new Error(message));
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Start the OAuth authorization flow using a callback page approach
+ * Opens Asana login in a new tab, which redirects to our extension's callback page
  * @returns Promise resolving to true if auth succeeds
  * @throws AuthFailedError if authentication fails
  * @throws NetworkOfflineError if offline
@@ -83,9 +124,15 @@ export async function startAuthFlow(): Promise<boolean> {
     throw new NetworkOfflineError('Cannot authenticate while offline');
   }
 
+  // Cancel any pending auth
+  if (pendingAuthState) {
+    pendingAuthState.reject(new AuthFailedError('Authentication cancelled - new auth started'));
+    pendingAuthState = null;
+  }
+
   try {
-    // Get the redirect URL from Chrome identity API
-    const redirectUrl = chrome.identity.getRedirectURL();
+    // Get the redirect URL (our extension's callback page)
+    const redirectUrl = getCallbackUrl();
 
     // Generate PKCE code verifier and challenge
     const codeVerifier = generateCodeVerifier();
@@ -104,42 +151,25 @@ export async function startAuthFlow(): Promise<boolean> {
 
     const authUrl = `${ASANA_OAUTH_BASE}?${authParams.toString()}`;
 
-    // Launch the web auth flow
-    let responseUrl: string | undefined;
-    try {
-      responseUrl = await chrome.identity.launchWebAuthFlow({
-        url: authUrl,
-        interactive: true,
+    // Create a promise that will be resolved when the OAuth callback is received
+    return new Promise<boolean>((resolve, reject) => {
+      // Store the pending auth state
+      pendingAuthState = {
+        codeVerifier,
+        redirectUrl,
+        resolve,
+        reject,
+      };
+
+      // Open the auth URL in a new tab
+      chrome.tabs.create({ url: authUrl }, (tab) => {
+        if (chrome.runtime.lastError || !tab?.id) {
+          pendingAuthState = null;
+          reject(new AuthFailedError('Failed to open authentication page'));
+        }
+        // The callback page will send us the code via message
       });
-    } catch (error) {
-      // User closed the auth window or denied access
-      const message = error instanceof Error ? error.message : String(error);
-      if (message.includes('user') || message.includes('cancel') || message.includes('closed')) {
-        throw new AuthFailedError('Authentication was cancelled');
-      }
-      throw new AuthFailedError(`Authentication failed: ${message}`, error);
-    }
-
-    if (!responseUrl) {
-      throw new AuthFailedError('No response from authentication flow');
-    }
-
-    // Extract authorization code from response URL
-    const url = new URL(responseUrl);
-    const code = url.searchParams.get('code');
-
-    if (!code) {
-      const error = url.searchParams.get('error');
-      const errorDescription = url.searchParams.get('error_description');
-      throw new AuthFailedError(
-        errorDescription || `OAuth error: ${error || 'unknown'}`,
-      );
-    }
-
-    // Exchange code for tokens
-    const tokens = await exchangeCodeForTokens(code, codeVerifier, redirectUrl);
-    await setTokens(tokens);
-    return true;
+    });
   } catch (error) {
     // Re-throw our custom errors
     if (error instanceof AuthFailedError || error instanceof NetworkError || error instanceof NetworkOfflineError) {
@@ -183,6 +213,7 @@ export async function exchangeCodeForTokens(
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
         code,
         redirect_uri: redirectUri,
         code_verifier: verifier,
@@ -247,6 +278,7 @@ export async function refreshTokens(refreshToken: string): Promise<OAuthTokens> 
       body: new URLSearchParams({
         grant_type: 'refresh_token',
         client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
         refresh_token: refreshToken,
       }).toString(),
     });

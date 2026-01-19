@@ -7,7 +7,9 @@
     "identity",
     "storage",
     "contextMenus",
-    "activeTab"
+    "activeTab",
+    "webNavigation",
+    "tabs"
   ],
   "host_permissions": [
     "https://app.asana.com/*",
@@ -43,6 +45,12 @@
     }
   },
   "options_page": "settings/settings.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["oauth-callback/callback.html"],
+      "matches": ["https://app.asana.com/*"]
+    }
+  ],
   "commands": {
     "_execute_action": {
       "suggested_key": {

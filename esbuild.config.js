@@ -5,6 +5,16 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// Check if config.local.ts exists for aliasing
+const configLocalPath = join(__dirname, 'src', 'config.local.ts');
+const useLocalConfig = existsSync(configLocalPath);
+
+if (useLocalConfig) {
+  console.log('Using config.local.ts for build');
+} else {
+  console.log('Warning: config.local.ts not found, using placeholder config.ts');
+}
+
 // Entry points for the extension
 const entryPoints = [
   'src/background/service-worker.ts',
@@ -12,6 +22,7 @@ const entryPoints = [
   'src/content/gmail-content.ts',
   'src/content/outlook-content.ts',
   'src/settings/settings.ts',
+  'src/oauth-callback/callback.ts',
 ];
 
 // Filter to only existing entry points (for POC phase, not all files exist yet)
@@ -19,6 +30,25 @@ const existingEntryPoints = entryPoints.filter(entry => {
   const fullPath = join(__dirname, entry);
   return existsSync(fullPath);
 });
+
+// Plugin to resolve config.ts to config.local.ts when it exists
+const configAliasPlugin = {
+  name: 'config-alias',
+  setup(build) {
+    if (!useLocalConfig) return;
+
+    // Intercept imports of config.ts and redirect to config.local.ts
+    build.onResolve({ filter: /\/config$/ }, (args) => {
+      // Only redirect if it's resolving to our src/config.ts
+      if (args.resolveDir.includes('src') || args.resolveDir.includes('background') || args.resolveDir.includes('popup')) {
+        return {
+          path: configLocalPath,
+        };
+      }
+      return null;
+    });
+  },
+};
 
 // Build configuration
 const buildOptions = {
@@ -30,6 +60,7 @@ const buildOptions = {
   target: 'es2022',
   sourcemap: true,
   minify: false,
+  plugins: [configAliasPlugin],
 };
 
 /**
@@ -89,6 +120,21 @@ function copyStaticAssets() {
     if (existsSync(settingsCss)) {
       copyFileSync(settingsCss, join(settingsDir, 'settings.css'));
       console.log('Copied settings.css');
+    }
+  }
+
+  // Copy OAuth callback HTML if it exists
+  const callbackDir = join(distDir, 'oauth-callback');
+  const callbackSrcDir = join(__dirname, 'src', 'oauth-callback');
+  if (existsSync(callbackSrcDir)) {
+    if (!existsSync(callbackDir)) {
+      mkdirSync(callbackDir, { recursive: true });
+    }
+
+    const callbackHtml = join(callbackSrcDir, 'callback.html');
+    if (existsSync(callbackHtml)) {
+      copyFileSync(callbackHtml, join(callbackDir, 'callback.html'));
+      console.log('Copied callback.html');
     }
   }
 

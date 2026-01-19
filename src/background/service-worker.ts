@@ -19,7 +19,7 @@ import {
   type MessageHandlerRegistry,
   type MessageErrorCode,
 } from '../shared/messaging';
-import { isAuthenticated, startAuthFlow, logout } from './oauth';
+import { isAuthenticated, startAuthFlow, logout, handleOAuthCallback } from './oauth';
 import { getWorkspaces, getProjects, getSections, getTags, createTask } from './asana-api';
 import { getOrFetch, clearCache } from './cache';
 import { setupContextMenu } from './context-menu';
@@ -300,7 +300,17 @@ const messageHandlers: MessageHandlerRegistry = {
  * Listen for messages from popup and content scripts
  * Uses createMessageRouter for consistent message handling
  */
-chrome.runtime.onMessage.addListener(createMessageRouter(messageHandlers));
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle OAuth callback separately (different message format)
+  if (message?.type === 'OAUTH_CALLBACK' && message?.code) {
+    handleOAuthCallback(message.code).then(sendResponse);
+    return true;
+  }
+
+  // Route all other messages through the standard router
+  const router = createMessageRouter(messageHandlers);
+  return router(message, sender, sendResponse);
+});
 
 // =============================================================================
 // Service Worker Lifecycle

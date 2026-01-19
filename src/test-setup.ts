@@ -74,6 +74,22 @@ const mockChromeTabs = {
   query: vi.fn(() => Promise.resolve([])),
   sendMessage: vi.fn(() => Promise.resolve()),
   get: vi.fn(() => Promise.resolve({ id: 1, url: 'https://example.com' })),
+  create: vi.fn((_createProperties: chrome.tabs.CreateProperties, callback?: (tab: chrome.tabs.Tab) => void) => {
+    const mockTab = { id: 123, url: _createProperties.url };
+    if (callback) {
+      callback(mockTab as chrome.tabs.Tab);
+    }
+    return mockTab;
+  }),
+  remove: vi.fn(() => Promise.resolve()),
+  onUpdated: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  },
+  onRemoved: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+  },
 };
 
 const mockChromeContextMenus = {

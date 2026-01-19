@@ -25,3 +25,4 @@
 // just be careful not to commit your real credentials.
 
 export const ASANA_CLIENT_ID = 'YOUR_CLIENT_ID_HERE';
+export const ASANA_CLIENT_SECRET = 'YOUR_CLIENT_SECRET_HERE';

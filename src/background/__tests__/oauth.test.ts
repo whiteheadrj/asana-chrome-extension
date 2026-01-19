@@ -15,6 +15,7 @@ import {
   getValidAccessToken,
   isAuthenticated,
   logout,
+  handleOAuthCallback,
 } from '../oauth.js';
 import { STORAGE_KEYS } from '../../shared/constants.js';
 import {
@@ -498,7 +499,7 @@ describe('oauth module', () => {
   });
 
   // ===========================================================================
-  // startAuthFlow
+  // startAuthFlow (callback-based implementation)
   // ===========================================================================
 
   describe('startAuthFlow', () => {
@@ -513,36 +514,41 @@ describe('oauth module', () => {
         .rejects.toThrow(NetworkOfflineError);
     });
 
-    it('throws AuthFailedError when user cancels', async () => {
-      chromeMock.identity.launchWebAuthFlow.mockRejectedValue(
-        new Error('The user cancelled the authorization')
-      );
+    it('opens a tab with the authorization URL containing PKCE params', async () => {
+      const mockResponse = {
+        access_token: 'token',
+        refresh_token: 'refresh',
+        expires_in: 3600,
+      };
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
 
-      await expect(startAuthFlow())
-        .rejects.toThrow(AuthFailedError);
+      // Start auth flow (will wait for callback)
+      const authPromise = startAuthFlow();
+
+      // Give the async code a moment to execute - need to wait for PKCE challenge generation
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      // Verify chrome.tabs.create was called
+      expect(chromeMock.tabs.create).toHaveBeenCalled();
+      const createCall = chromeMock.tabs.create.mock.calls[chromeMock.tabs.create.mock.calls.length - 1];
+      const authUrl = createCall[0].url;
+
+      // Check URL contains expected OAuth parameters
+      expect(authUrl).toContain('app.asana.com');
+      expect(authUrl).toContain('oauth_authorize');
+      expect(authUrl).toContain('code_challenge=');
+      expect(authUrl).toContain('code_challenge_method=S256');
+      expect(authUrl).toContain('response_type=code');
+
+      // Complete the flow
+      await handleOAuthCallback('test_code');
+      await authPromise;
     });
 
-    it('throws AuthFailedError when no response URL', async () => {
-      chromeMock.identity.launchWebAuthFlow.mockResolvedValue(undefined as unknown as string);
-
-      await expect(startAuthFlow())
-        .rejects.toThrow(AuthFailedError);
-    });
-
-    it('throws AuthFailedError when response has error', async () => {
-      chromeMock.identity.launchWebAuthFlow.mockResolvedValue(
-        'https://redirect.url?error=access_denied&error_description=User%20denied%20access'
-      );
-
-      await expect(startAuthFlow())
-        .rejects.toThrow(AuthFailedError);
-    });
-
-    it('exchanges code and stores tokens on success', async () => {
-      const redirectUrl = 'https://mock-id.chromiumapp.org/?code=auth_code_123';
-      chromeMock.identity.launchWebAuthFlow.mockResolvedValue(redirectUrl);
-      chromeMock.identity.getRedirectURL.mockReturnValue('https://mock-id.chromiumapp.org/');
-
+    it('exchanges code and stores tokens when callback received', async () => {
       const mockResponse = {
         access_token: 'final_access_token',
         refresh_token: 'final_refresh_token',
@@ -554,14 +560,19 @@ describe('oauth module', () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const result = await startAuthFlow();
+      // Start auth flow
+      const authPromise = startAuthFlow();
 
+      // Give the async code a moment to set up pending state
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Simulate the callback from the callback page
+      const callbackResult = await handleOAuthCallback('auth_code_123');
+
+      expect(callbackResult.success).toBe(true);
+
+      const result = await authPromise;
       expect(result).toBe(true);
-      expect(chromeMock.identity.launchWebAuthFlow).toHaveBeenCalledWith(
-        expect.objectContaining({
-          interactive: true,
-        })
-      );
 
       // Tokens should be stored
       const storedTokens = mockStorage[STORAGE_KEYS.OAUTH_TOKENS] as {
@@ -570,29 +581,34 @@ describe('oauth module', () => {
       expect(storedTokens.accessToken).toBe('final_access_token');
     });
 
-    it('includes PKCE challenge in authorization URL', async () => {
-      const redirectUrl = 'https://mock-id.chromiumapp.org/?code=auth_code';
-      chromeMock.identity.launchWebAuthFlow.mockResolvedValue(redirectUrl);
+    it('returns error when callback has no pending auth', async () => {
+      // Call handleOAuthCallback without starting auth flow first
+      const result = await handleOAuthCallback('orphan_code');
 
-      const mockResponse = {
-        access_token: 'token',
-        refresh_token: 'refresh',
-        expires_in: 3600,
-      };
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('No pending authentication');
+    });
 
+    it('rejects when token exchange fails', async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockResponse),
+        ok: false,
+        json: () => Promise.resolve({ error: 'invalid_code' }),
       });
 
-      await startAuthFlow();
+      // Start auth flow
+      const authPromise = startAuthFlow();
 
-      // Check that launchWebAuthFlow was called with URL containing PKCE params
-      const calls = chromeMock.identity.launchWebAuthFlow.mock.calls;
-      expect(calls.length).toBeGreaterThan(0);
-      const lastCall = calls[calls.length - 1];
-      expect(lastCall[0].url).toContain('code_challenge=');
-      expect(lastCall[0].url).toContain('code_challenge_method=S256');
+      // Give the async code a moment to set up pending state
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      // Simulate the callback
+      const callbackResult = await handleOAuthCallback('invalid_code');
+
+      expect(callbackResult.success).toBe(false);
+      expect(callbackResult.error).toBeDefined();
+
+      // The auth promise should reject
+      await expect(authPromise).rejects.toThrow();
     });
   });
 });
