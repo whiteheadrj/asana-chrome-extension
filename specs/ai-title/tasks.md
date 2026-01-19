@@ -399,7 +399,7 @@ After POC validated, clean up code.
   - _Requirements: AC-1.2_
   - _Design: Test Strategy - outlook-content.test.ts_
 
-- [ ] V6 [VERIFY] Quality checkpoint: content script tests
+- [x] V6 [VERIFY] Quality checkpoint: content script tests
   - **Do**: Run test suite to verify new tests pass
   - **Verify**: `pnpm test`
   - **Done when**: All tests pass
