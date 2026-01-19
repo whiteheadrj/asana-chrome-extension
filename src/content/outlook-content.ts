@@ -173,23 +173,48 @@ export function getEmailBody(): string | undefined {
 /**
  * Try to extract the sender information from the DOM
  *
+ * Returns the most specific value available: name is preferred over email.
+ *
  * @returns The sender email or name, or undefined if not found
  */
 export function getSenderInfo(): string | undefined {
-  // Look for sender info in the reading pane
-  const senderSelectors = [
+  // Name selectors (preferred - return name when available)
+  const nameSelectors = [
     '[data-app-section="FromLine"] span',
     'span[id*="PersonaName"]',
     '.OZZZK', // Sender name class
     '[aria-label*="From"]',
   ];
 
-  for (const selector of senderSelectors) {
+  // Email fallback selectors (use when name not available)
+  const emailSelectors = [
+    '[role="img"][aria-label*="@"]',
+    'button[aria-label*="@"]',
+  ];
+
+  // Try name selectors first
+  for (const selector of nameSelectors) {
     const element = document.querySelector(selector);
     if (element && element.textContent) {
       const text = element.textContent.trim();
       if (text && text.length > 0 && text.length < 200) {
         return text;
+      }
+    }
+  }
+
+  // Fall back to email selectors
+  for (const selector of emailSelectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      // Extract email from aria-label attribute
+      const ariaLabel = element.getAttribute('aria-label');
+      if (ariaLabel) {
+        // Extract email address from aria-label (e.g., "Profile picture of john@example.com")
+        const emailMatch = ariaLabel.match(/[\w.+-]+@[\w.-]+\.\w+/);
+        if (emailMatch) {
+          return emailMatch[0];
+        }
       }
     }
   }

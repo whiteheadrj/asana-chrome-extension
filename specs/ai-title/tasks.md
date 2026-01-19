@@ -114,7 +114,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-2_
   - _Design: Outlook Content Script section_
 
-- [ ] 1.8 Enhance getSenderInfo() in Outlook content script
+- [x] 1.8 Enhance getSenderInfo() in Outlook content script
   - **Do**:
     1. Add additional fallback selectors to existing `getSenderInfo()`
     2. Add `[role="img"][aria-label*="@"]` selector for sender email in avatar
