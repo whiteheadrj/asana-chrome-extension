@@ -139,7 +139,7 @@ Focus: Validate email body/sender extraction and improved prompts work end-to-en
   - _Requirements: FR-2, FR-4_
   - _Design: Outlook Content Script section_
 
-- [ ] V2 [VERIFY] Quality checkpoint: Outlook changes
+- [x] V2 [VERIFY] Quality checkpoint: Outlook changes
   - **Do**: Run quality commands to verify Outlook changes compile
   - **Verify**: `pnpm check-types && pnpm lint`
   - **Done when**: No type errors, no lint errors
