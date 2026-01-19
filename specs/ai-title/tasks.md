@@ -501,7 +501,7 @@ After POC validated, clean up code.
   - **Done when**: CI pipeline passes, all checks green
   - **Commit**: None (verification only)
 
-- [ ] 4.3 [VERIFY] AC checklist verification
+- [x] 4.3 [VERIFY] AC checklist verification
   - **Do**: Verify each acceptance criterion programmatically:
     - AC-1.1: Grep for getEmailBody in gmail-content.ts, verify truncation to 1000
     - AC-1.2: Grep for getEmailBody in outlook-content.ts, verify truncation to 1000
