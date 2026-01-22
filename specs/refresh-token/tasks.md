@@ -103,7 +103,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - _Requirements: FR-1, FR-2, FR-3, FR-4, FR-5, AC-2.1, AC-2.2, AC-2.3, AC-2.4_
   - _Design: Data Flow diagram_
 
-- [ ] 1.8 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types
+- [x] 1.8 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types
   - **Do**: Run quality commands after major refactoring
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: Both commands exit 0
