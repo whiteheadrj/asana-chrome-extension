@@ -109,7 +109,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - **Done when**: Both commands exit 0
   - **Commit**: `chore(oauth): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 1.9 POC manual validation via test harness
+- [x] 1.9 POC manual validation via test harness
   - **Do**:
     1. Run existing unit tests to ensure no regressions: `pnpm test src/background/__tests__/oauth.test.ts`
     2. If tests fail due to new behavior, note failures but continue (tests updated in Phase 3)
