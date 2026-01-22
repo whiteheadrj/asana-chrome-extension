@@ -49,7 +49,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - _Requirements: FR-4, AC-3.1, AC-3.2, AC-3.3, AC-3.4, AC-3.5_
   - _Design: logRefreshFailure component_
 
-- [ ] 1.4 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types
+- [x] 1.4 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types
   - **Do**: Run quality commands to catch issues early
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: Both commands exit 0
