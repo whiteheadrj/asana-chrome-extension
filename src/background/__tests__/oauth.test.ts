@@ -609,6 +609,80 @@ describe('oauth module', () => {
       warnSpy.mockRestore();
       chromeMock.storage.local.get = originalGet;
     });
+
+    // =========================================================================
+    // Logging Output Tests
+    // =========================================================================
+
+    it('logs failure with timestamp, status, and error code', async () => {
+      // Mock 400 with invalid_grant body
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({
+          json: () => Promise.resolve({ error: 'invalid_grant' }),
+        }),
+        json: () => Promise.resolve({ error: 'invalid_grant' }),
+      });
+
+      // Spy on console.error
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        await refreshTokens('invalid_refresh_token');
+      } catch {
+        // Expected to throw
+      }
+
+      // Verify log contains: timestamp, status (400), error (invalid_grant), recoverable (false)
+      expect(errorSpy).toHaveBeenCalled();
+      const logOutput = errorSpy.mock.calls[0][0] as string;
+      expect(logOutput).toContain('Timestamp:');
+      expect(logOutput).toContain('HTTP Status: 400');
+      expect(logOutput).toContain('Error: invalid_grant');
+      expect(logOutput).toContain('Recoverable: false');
+
+      errorSpy.mockRestore();
+    });
+
+    it('logs retry attempts with attempt number', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'retry_success_token',
+        refresh_token: 'retry_success_refresh',
+        expires_in: 3600,
+      };
+
+      // Mock 503 once, then 200
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      // Spy on console.error
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await tokenPromise;
+
+      // Verify log shows "attempt 1/4" (since MAX_REFRESH_RETRIES=3, totalAttempts=4)
+      expect(errorSpy).toHaveBeenCalled();
+      const logOutput = errorSpy.mock.calls[0][0] as string;
+      expect(logOutput).toContain('Attempt: 1/4');
+
+      errorSpy.mockRestore();
+      vi.useRealTimers();
+    });
   });
 
   // ===========================================================================

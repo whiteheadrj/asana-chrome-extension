@@ -233,7 +233,7 @@ Focus: Add comprehensive unit tests for new behaviors.
   - _Requirements: FR-5, NFR-4_
   - _Design: Test Strategy - storage verification_
 
-- [ ] 3.6 Add tests for logging output
+- [x] 3.6 Add tests for logging output
   - **Do**:
     1. Add test: "logs failure with timestamp, status, and error code"
        - Mock 400 with invalid_grant
