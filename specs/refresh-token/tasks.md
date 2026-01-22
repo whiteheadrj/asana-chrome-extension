@@ -208,7 +208,7 @@ Focus: Add comprehensive unit tests for new behaviors.
   - _Requirements: FR-2, AC-4.1, AC-4.2, NFR-4_
   - _Design: Test Strategy - non-retryable errors_
 
-- [ ] 3.4 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types && pnpm test
+- [x] 3.4 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types && pnpm test
   - **Do**: Run full quality suite after adding tests
   - **Verify**: `pnpm lint && pnpm check-types && pnpm test`
   - **Done when**: All commands exit 0
