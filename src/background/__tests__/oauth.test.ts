@@ -17,6 +17,8 @@ import {
   logout,
   handleOAuthCallback,
   parseAsanaError,
+  isRetryableError,
+  verifyTokenStorage,
 } from '../oauth.js';
 import { STORAGE_KEYS } from '../../shared/constants.js';
 import {
@@ -52,6 +54,148 @@ describe('oauth module', () => {
       value: originalNavigator,
       writable: true,
       configurable: true,
+    });
+  });
+
+  // ===========================================================================
+  // isRetryableError Helper
+  // ===========================================================================
+
+  describe('isRetryableError', () => {
+    it('returns true for 429 rate limit', () => {
+      const response = new Response(null, { status: 429 });
+      expect(isRetryableError(response)).toBe(true);
+    });
+
+    it('returns true for 500 server error', () => {
+      const response = new Response(null, { status: 500 });
+      expect(isRetryableError(response)).toBe(true);
+    });
+
+    it('returns true for 503 service unavailable', () => {
+      const response = new Response(null, { status: 503 });
+      expect(isRetryableError(response)).toBe(true);
+    });
+
+    it('returns false for 400 bad request', () => {
+      const response = new Response(null, { status: 400 });
+      expect(isRetryableError(response)).toBe(false);
+    });
+
+    it('returns false for 401 unauthorized', () => {
+      const response = new Response(null, { status: 401 });
+      expect(isRetryableError(response)).toBe(false);
+    });
+
+    it('returns false for 200 success', () => {
+      const response = new Response(null, { status: 200 });
+      expect(isRetryableError(response)).toBe(false);
+    });
+  });
+
+  // ===========================================================================
+  // verifyTokenStorage Helper
+  // ===========================================================================
+
+  describe('verifyTokenStorage', () => {
+    it('returns true when stored tokens match expected', async () => {
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      // Store the tokens first
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = expectedTokens;
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when no tokens stored', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      // Do not store tokens - leave storage empty
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('no tokens found in storage')
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('returns false when accessToken does not match', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'expected_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = {
+        accessToken: 'different_access',
+        refreshToken: 'test_refresh',
+        expiresAt: expectedTokens.expiresAt,
+      };
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('stored tokens do not match expected values')
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('returns false when refreshToken does not match', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'expected_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = {
+        accessToken: 'test_access',
+        refreshToken: 'different_refresh',
+        expiresAt: expectedTokens.expiresAt,
+      };
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+
+      warnSpy.mockRestore();
+    });
+
+    it('returns false when expiresAt does not match', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 7200000, // Different expiration
+      };
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+
+      warnSpy.mockRestore();
     });
   });
 
@@ -405,6 +549,40 @@ describe('oauth module', () => {
 
       expect(tokens.accessToken).toBe('retry_success_token');
       expect(tokens.refreshToken).toBe('retry_success_refresh');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('retries on 429 rate limit then succeeds', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'rate_limit_success_token',
+        refresh_token: 'rate_limit_success_refresh',
+        expires_in: 3600,
+      };
+
+      // Mock fetch to return 429 once, then succeed
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      const tokens = await tokenPromise;
+
+      expect(tokens.accessToken).toBe('rate_limit_success_token');
+      expect(tokens.refreshToken).toBe('rate_limit_success_refresh');
       expect(globalThis.fetch).toHaveBeenCalledTimes(2);
 
       vi.useRealTimers();

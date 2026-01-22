@@ -267,7 +267,7 @@ Focus: Add comprehensive unit tests for new behaviors.
   - _Requirements: AC-1.1, AC-1.2_
   - _Design: Test Strategy_
 
-- [ ] 3.8 Verify test coverage meets target
+- [x] 3.8 Verify test coverage meets target
   - **Do**:
     1. Run coverage report: `pnpm test --coverage`
     2. Check coverage for oauth.ts refreshTokens function
