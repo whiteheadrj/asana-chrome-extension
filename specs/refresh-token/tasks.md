@@ -146,7 +146,7 @@ Focus: Clean up code structure after POC validated.
   - **Commit**: `refactor(oauth): extract isRetryableError helper`
   - _Design: retryWithBackoff conditions_
 
-- [ ] 2.3 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types
+- [x] 2.3 [VERIFY] Quality checkpoint: pnpm lint && pnpm check-types
   - **Do**: Run quality commands after refactoring
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: Both commands exit 0
