@@ -214,7 +214,7 @@ Focus: Add comprehensive unit tests for new behaviors.
   - **Done when**: All commands exit 0
   - **Commit**: `chore(oauth): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 3.5 Add tests for storage verification
+- [x] 3.5 Add tests for storage verification
   - **Do**:
     1. Add test: "calls getTokens after setTokens for verification"
        - Mock successful refresh

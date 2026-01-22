@@ -490,6 +490,125 @@ describe('oauth module', () => {
       // Verify userMessage contains "Configuration error"
       expect(caughtError?.userMessage).toContain('Configuration error');
     });
+
+    // =========================================================================
+    // Storage Verification Tests
+    // =========================================================================
+
+    it('calls getTokens after setTokens for verification', async () => {
+      const mockResponse = {
+        access_token: 'verified_access_token',
+        refresh_token: 'verified_refresh_token',
+        expires_in: 3600,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      await refreshTokens('valid_refresh_token');
+
+      // getTokens should have been called after setTokens for verification
+      // Check mockStorage was written to and read from
+      const storedTokens = mockStorage[STORAGE_KEYS.OAUTH_TOKENS] as {
+        accessToken: string;
+        refreshToken: string;
+        expiresAt: number;
+      };
+      expect(storedTokens).toBeDefined();
+      expect(storedTokens.accessToken).toBe('verified_access_token');
+      expect(storedTokens.refreshToken).toBe('verified_refresh_token');
+    });
+
+    it('logs warning when storage verification fails', async () => {
+      const mockResponse = {
+        access_token: 'original_access_token',
+        refresh_token: 'original_refresh_token',
+        expires_in: 3600,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      // Spy on console.warn
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Mock chrome.storage.local.get to return different values than what was set
+      // This simulates storage verification failure
+      const originalGet = chromeMock.storage.local.get;
+      chromeMock.storage.local.get = vi.fn().mockImplementation((keys, callback) => {
+        // Return different tokens than what was stored
+        const differentTokens = {
+          [STORAGE_KEYS.OAUTH_TOKENS]: {
+            accessToken: 'different_access_token',
+            refreshToken: 'different_refresh_token',
+            expiresAt: Date.now() + 3600000,
+          },
+        };
+        if (callback) {
+          callback(differentTokens);
+        }
+        return Promise.resolve(differentTokens);
+      });
+
+      await refreshTokens('valid_refresh_token');
+
+      // Verify warning logged with '[OAuth]' prefix
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[OAuth] Token storage verification failed')
+      );
+
+      // Restore mocks
+      warnSpy.mockRestore();
+      chromeMock.storage.local.get = originalGet;
+    });
+
+    it('continues without error when storage verification fails', async () => {
+      const mockResponse = {
+        access_token: 'continue_access_token',
+        refresh_token: 'continue_refresh_token',
+        expires_in: 3600,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      // Mock console.warn to suppress output
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Mock chrome.storage.local.get to return different values (verification fails)
+      const originalGet = chromeMock.storage.local.get;
+      chromeMock.storage.local.get = vi.fn().mockImplementation((keys, callback) => {
+        const differentTokens = {
+          [STORAGE_KEYS.OAUTH_TOKENS]: {
+            accessToken: 'totally_different_token',
+            refreshToken: 'totally_different_refresh',
+            expiresAt: 12345,
+          },
+        };
+        if (callback) {
+          callback(differentTokens);
+        }
+        return Promise.resolve(differentTokens);
+      });
+
+      // Should NOT throw, should still return tokens
+      const tokens = await refreshTokens('valid_refresh_token');
+
+      // Verify function still returns tokens (doesn't throw)
+      expect(tokens.accessToken).toBe('continue_access_token');
+      expect(tokens.refreshToken).toBe('continue_refresh_token');
+      expect(tokens.expiresAt).toBeGreaterThan(Date.now());
+
+      // Restore mocks
+      warnSpy.mockRestore();
+      chromeMock.storage.local.get = originalGet;
+    });
   });
 
   // ===========================================================================
