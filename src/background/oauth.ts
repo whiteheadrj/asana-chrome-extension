@@ -85,6 +85,26 @@ export interface RefreshFailureContext {
 }
 
 /**
+ * Determine if a response represents a retryable error
+ * Retryable: 5xx server errors, 429 rate limit
+ * Not retryable: success (2xx), 4xx client errors (except 429)
+ * @param response - The fetch Response to check
+ * @returns true if the error is retryable, false otherwise
+ */
+export function isRetryableError(response: Response): boolean {
+  // 429 (Too Many Requests / rate limit) is retryable
+  if (response.status === 429) {
+    return true;
+  }
+  // 5xx server errors are retryable
+  if (response.status >= 500) {
+    return true;
+  }
+  // 4xx (except 429) and success are not retryable
+  return false;
+}
+
+/**
  * Determine the error type from an Asana OAuth error code
  * @param errorCode - The error code from Asana's response
  * @returns The categorized error type
@@ -421,8 +441,8 @@ export async function refreshTokens(refreshToken: string): Promise<OAuthTokens> 
       continue;
     }
 
-    // Handle 5xx server errors: recoverable, retry with backoff
-    if (response.status >= 500) {
+    // Handle retryable errors (5xx server errors, 429 rate limit): retry with backoff
+    if (isRetryableError(response)) {
       const isLastAttempt = attempt === MAX_REFRESH_RETRIES;
 
       logRefreshFailure({

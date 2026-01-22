@@ -134,7 +134,7 @@ Focus: Clean up code structure after POC validated.
   - **Commit**: `refactor(oauth): extract error type classification`
   - _Design: Error Handling table_
 
-- [ ] 2.2 Add isRetryableError helper for clarity
+- [x] 2.2 Add isRetryableError helper for clarity
   - **Do**:
     1. Add `isRetryableError(response: Response): boolean` helper
     2. Returns true for: 5xx status, 429 (rate limit)
