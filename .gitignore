@@ -6,3 +6,4 @@ dist/
 
 # Local config with credentials - never commit
 src/config.local.ts
+coverage/
