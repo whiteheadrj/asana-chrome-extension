@@ -250,7 +250,7 @@ Focus: Add comprehensive unit tests for new behaviors.
   - _Requirements: FR-4, AC-3.1, AC-3.2, AC-3.3, AC-3.4, NFR-4_
   - _Design: Test Strategy - logging_
 
-- [ ] 3.7 Add E2E test for token refresh flow
+- [x] 3.7 Add E2E test for token refresh flow
   - **Do**:
     1. Check existing E2E test structure in `tests/e2e/`
     2. Add E2E test that:
