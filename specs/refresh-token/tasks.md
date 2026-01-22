@@ -173,7 +173,7 @@ Focus: Add comprehensive unit tests for new behaviors.
   - _Requirements: NFR-4_
   - _Design: Test Strategy - error parsing scenarios_
 
-- [ ] 3.2 Add tests for retry behavior on network errors
+- [x] 3.2 Add tests for retry behavior on network errors
   - **Do**:
     1. Add test: "retries on network error then succeeds"
        - Mock fetch to throw once, then succeed

@@ -24,6 +24,7 @@ import {
   AuthFailedError,
   AuthExpiredError,
   NetworkOfflineError,
+  NetworkError,
 } from '../../shared/errors.js';
 
 // Mock navigator for offline detection
@@ -338,6 +339,103 @@ describe('oauth module', () => {
 
       expect(tokens.expiresAt).toBeGreaterThanOrEqual(expectedMinExpiration);
       expect(tokens.expiresAt).toBeLessThanOrEqual(expectedMaxExpiration);
+    });
+
+    // =========================================================================
+    // Retry Behavior Tests
+    // =========================================================================
+
+    it('retries on network error then succeeds', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'new_access_token',
+        refresh_token: 'new_refresh_token',
+        expires_in: 3600,
+      };
+
+      // Mock fetch to throw once (network error), then succeed
+      globalThis.fetch = vi.fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      const tokens = await tokenPromise;
+
+      expect(tokens.accessToken).toBe('new_access_token');
+      expect(tokens.refreshToken).toBe('new_refresh_token');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('retries on 5xx then succeeds', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'retry_success_token',
+        refresh_token: 'retry_success_refresh',
+        expires_in: 3600,
+      };
+
+      // Mock fetch to return 503 once, then succeed
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      const tokens = await tokenPromise;
+
+      expect(tokens.accessToken).toBe('retry_success_token');
+      expect(tokens.refreshToken).toBe('retry_success_refresh');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('respects max retries on persistent network failure', async () => {
+      vi.useFakeTimers();
+
+      // Mock fetch to throw 4 times (more than MAX_REFRESH_RETRIES = 3)
+      globalThis.fetch = vi.fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      // Wrap in a helper to catch rejection properly
+      let caughtError: Error | null = null;
+      const tokenPromise = refreshTokens('valid_refresh_token').catch((error) => {
+        caughtError = error;
+      });
+
+      // Advance timers to skip all backoff delays (1s + 2s + 4s = 7s)
+      await vi.advanceTimersByTimeAsync(10000);
+
+      await tokenPromise;
+
+      // Should have attempted 4 times (initial + 3 retries)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+      expect(caughtError).toBeInstanceOf(NetworkError);
+
+      vi.useRealTimers();
     });
   });
 
