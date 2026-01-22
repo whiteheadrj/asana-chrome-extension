@@ -156,7 +156,7 @@ Focus: Clean up code structure after POC validated.
 
 Focus: Add comprehensive unit tests for new behaviors.
 
-- [ ] 3.1 Add tests for parseAsanaError helper
+- [x] 3.1 Add tests for parseAsanaError helper
   - **Do**:
     1. Open `src/background/__tests__/oauth.test.ts`
     2. Add test section for parseAsanaError (export function if needed)

@@ -16,6 +16,7 @@ import {
   isAuthenticated,
   logout,
   handleOAuthCallback,
+  parseAsanaError,
 } from '../oauth.js';
 import { STORAGE_KEYS } from '../../shared/constants.js';
 import {
@@ -137,6 +138,100 @@ describe('oauth module', () => {
       expect(challenge).not.toContain('+');
       expect(challenge).not.toContain('/');
       expect(challenge).not.toContain('=');
+    });
+  });
+
+  // ===========================================================================
+  // parseAsanaError Helper
+  // ===========================================================================
+
+  describe('parseAsanaError', () => {
+    it('parses valid JSON with error field', async () => {
+      const response = new Response(JSON.stringify({ error: 'invalid_grant' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('invalid_grant');
+    });
+
+    it('parses valid JSON with error_description', async () => {
+      const response = new Response(
+        JSON.stringify({
+          error: 'invalid_client',
+          error_description: 'Client authentication failed',
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      const result = await parseAsanaError(response);
+
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('invalid_client');
+      expect(result?.error_description).toBe('Client authentication failed');
+    });
+
+    it('returns null for non-JSON response', async () => {
+      const response = new Response('Not JSON content', {
+        status: 500,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for empty body', async () => {
+      const response = new Response('', {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for malformed JSON', async () => {
+      const response = new Response('{ invalid json }', {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for JSON without error field', async () => {
+      const response = new Response(JSON.stringify({ message: 'Something went wrong' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('does not consume the original response body', async () => {
+      const response = new Response(JSON.stringify({ error: 'test_error' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      await parseAsanaError(response);
+
+      // Original response body should still be readable
+      const originalBody = await response.json();
+      expect(originalBody.error).toBe('test_error');
     });
   });
 
