@@ -123,7 +123,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
 
 Focus: Clean up code structure after POC validated.
 
-- [ ] 2.1 Extract error type classification logic
+- [x] 2.1 Extract error type classification logic
   - **Do**:
     1. Create `getAsanaErrorType(errorCode?: string): 'auth' | 'config' | 'network' | 'unknown'` helper
     2. Map: invalid_grant -> 'auth', invalid_client -> 'config', unauthorized_client -> 'config', else -> 'unknown'

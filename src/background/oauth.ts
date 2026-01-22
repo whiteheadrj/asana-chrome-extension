@@ -85,6 +85,21 @@ export interface RefreshFailureContext {
 }
 
 /**
+ * Determine the error type from an Asana OAuth error code
+ * @param errorCode - The error code from Asana's response
+ * @returns The categorized error type
+ */
+export function getAsanaErrorType(errorCode?: string): 'auth' | 'config' | 'network' | 'unknown' {
+  if (errorCode === 'invalid_grant') {
+    return 'auth';
+  }
+  if (errorCode === 'invalid_client' || errorCode === 'unauthorized_client') {
+    return 'config';
+  }
+  return 'unknown';
+}
+
+/**
  * Log a refresh token failure with structured diagnostic information
  * Never logs token values - only metadata about the failure
  * @param context - The failure context to log
@@ -432,15 +447,8 @@ export async function refreshTokens(refreshToken: string): Promise<OAuthTokens> 
       const asanaError = await parseAsanaError(response);
       const errorCode = asanaError?.error;
 
-      // Determine error type for logging
-      let errorType: 'auth' | 'config' | 'unknown';
-      if (errorCode === 'invalid_grant') {
-        errorType = 'auth';
-      } else if (errorCode === 'invalid_client' || errorCode === 'unauthorized_client') {
-        errorType = 'config';
-      } else {
-        errorType = 'unknown';
-      }
+      // Determine error type for logging using extracted helper
+      const errorType = getAsanaErrorType(errorCode);
 
       logRefreshFailure({
         timestamp: new Date().toISOString(),
