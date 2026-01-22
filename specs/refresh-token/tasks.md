@@ -18,7 +18,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - _Requirements: FR-6, AC-4.1, AC-4.2_
   - _Design: AuthExpiredError Enhancement_
 
-- [ ] 1.2 Add AsanaOAuthError interface and parseAsanaError helper
+- [x] 1.2 Add AsanaOAuthError interface and parseAsanaError helper
   - **Do**:
     1. Open `src/background/oauth.ts`
     2. Add `AsanaOAuthError` interface with `error` and `error_description` fields

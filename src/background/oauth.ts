@@ -31,6 +31,45 @@ const CLIENT_ID = ASANA_CLIENT_ID;
 const CLIENT_SECRET = ASANA_CLIENT_SECRET;
 
 // =============================================================================
+// Asana Error Types
+// =============================================================================
+
+/**
+ * Asana OAuth error response structure
+ * Returned when token operations fail
+ */
+export interface AsanaOAuthError {
+  error: string;
+  error_description?: string;
+}
+
+/**
+ * Parse an Asana error response from a fetch Response
+ * @param response - The fetch Response to parse
+ * @returns The parsed error or null if parsing fails
+ */
+export async function parseAsanaError(response: Response): Promise<AsanaOAuthError | null> {
+  try {
+    // Clone response to avoid consuming the body
+    const cloned = response.clone();
+    const data = await cloned.json();
+
+    // Validate the response has the expected error field
+    if (data && typeof data.error === 'string') {
+      return {
+        error: data.error,
+        error_description: typeof data.error_description === 'string' ? data.error_description : undefined,
+      };
+    }
+
+    return null;
+  } catch {
+    // JSON parse failed or other error
+    return null;
+  }
+}
+
+// =============================================================================
 // PKCE Helpers
 // =============================================================================
 
