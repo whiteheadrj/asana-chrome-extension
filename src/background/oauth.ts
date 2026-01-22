@@ -44,6 +44,39 @@ export interface AsanaOAuthError {
 }
 
 /**
+ * Context for logging refresh token failures
+ * Used for diagnostic logging with structured data
+ */
+export interface RefreshFailureContext {
+  timestamp: string;
+  attempt: number;
+  totalAttempts: number;
+  httpStatus?: number;
+  asanaError?: string;
+  asanaDescription?: string;
+  isRecoverable: boolean;
+  errorType: 'auth' | 'config' | 'network' | 'unknown';
+}
+
+/**
+ * Log a refresh token failure with structured diagnostic information
+ * Never logs token values - only metadata about the failure
+ * @param context - The failure context to log
+ */
+export function logRefreshFailure(context: RefreshFailureContext): void {
+  console.error(
+    `[OAuth] Token refresh failed\n` +
+    `  Timestamp: ${context.timestamp}\n` +
+    `  Attempt: ${context.attempt}/${context.totalAttempts}\n` +
+    `  HTTP Status: ${context.httpStatus ?? 'N/A'}\n` +
+    `  Error: ${context.asanaError ?? 'N/A'}\n` +
+    `  Description: ${context.asanaDescription ?? 'N/A'}\n` +
+    `  Recoverable: ${context.isRecoverable}\n` +
+    `  Type: ${context.errorType}`
+  );
+}
+
+/**
  * Parse an Asana error response from a fetch Response
  * @param response - The fetch Response to parse
  * @returns The parsed error or null if parsing fails

@@ -34,7 +34,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - _Requirements: FR-1, AC-3.1_
   - _Design: parseAsanaError component_
 
-- [ ] 1.3 Add RefreshFailureContext interface and logRefreshFailure function
+- [x] 1.3 Add RefreshFailureContext interface and logRefreshFailure function
   - **Do**:
     1. Open `src/background/oauth.ts`
     2. Add `RefreshFailureContext` interface with: timestamp, attempt, totalAttempts, httpStatus, asanaError, asanaDescription, isRecoverable, errorType
