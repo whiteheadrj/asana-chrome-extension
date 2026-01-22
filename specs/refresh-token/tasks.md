@@ -280,7 +280,7 @@ Focus: Add comprehensive unit tests for new behaviors.
 
 ## Phase 4: Quality Gates
 
-- [ ] 4.1 [VERIFY] Full local CI: pnpm lint && pnpm check-types && pnpm test && pnpm build
+- [x] 4.1 [VERIFY] Full local CI: pnpm lint && pnpm check-types && pnpm test && pnpm build
   - **Do**: Run complete local CI suite
   - **Verify**: `pnpm lint && pnpm check-types && pnpm test && pnpm build`
   - **Done when**: Build succeeds, all tests pass
