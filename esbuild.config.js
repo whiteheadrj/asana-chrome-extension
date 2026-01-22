@@ -15,18 +15,27 @@ if (useLocalConfig) {
   console.log('Warning: config.local.ts not found, using placeholder config.ts');
 }
 
-// Entry points for the extension
-const entryPoints = [
+// Entry points for the extension - ESM format (popups, service worker)
+const esmEntryPoints = [
   'src/background/service-worker.ts',
   'src/popup/popup.ts',
-  'src/content/gmail-content.ts',
-  'src/content/outlook-content.ts',
   'src/settings/settings.ts',
   'src/oauth-callback/callback.ts',
 ];
 
+// Entry points that need IIFE format (content scripts cannot use ES modules)
+const iifeEntryPoints = [
+  'src/content/gmail-content.ts',
+  'src/content/outlook-content.ts',
+];
+
 // Filter to only existing entry points (for POC phase, not all files exist yet)
-const existingEntryPoints = entryPoints.filter(entry => {
+const existingEsmEntryPoints = esmEntryPoints.filter(entry => {
+  const fullPath = join(__dirname, entry);
+  return existsSync(fullPath);
+});
+
+const existingIifeEntryPoints = iifeEntryPoints.filter(entry => {
   const fullPath = join(__dirname, entry);
   return existsSync(fullPath);
 });
@@ -50,12 +59,28 @@ const configAliasPlugin = {
   },
 };
 
-// Build configuration
-const buildOptions = {
-  entryPoints: existingEntryPoints.length > 0 ? existingEntryPoints : undefined,
+// Build configuration for ESM entry points (service worker, popups)
+const esmBuildOptions = {
+  entryPoints: existingEsmEntryPoints.length > 0 ? existingEsmEntryPoints : undefined,
   bundle: true,
   format: 'esm',
   outdir: 'dist',
+  outbase: 'src',  // Preserve directory structure
+  external: ['chrome'],
+  target: 'es2022',
+  sourcemap: true,
+  minify: false,
+  plugins: [configAliasPlugin],
+};
+
+// Build configuration for IIFE entry points (content scripts)
+// Content scripts CANNOT use ES modules - they must be IIFE format
+const iifeBuildOptions = {
+  entryPoints: existingIifeEntryPoints.length > 0 ? existingIifeEntryPoints : undefined,
+  bundle: true,
+  format: 'iife',
+  outdir: 'dist',
+  outbase: 'src',  // Preserve directory structure (src/content/x.ts -> dist/content/x.js)
   external: ['chrome'],
   target: 'es2022',
   sourcemap: true,
@@ -163,22 +188,41 @@ async function build() {
   // Copy static assets first
   copyStaticAssets();
 
-  // Only run esbuild if there are entry points
-  if (existingEntryPoints.length > 0) {
+  let hasEntryPoints = false;
+
+  // Build ESM entry points (service worker, popups)
+  if (existingEsmEntryPoints.length > 0) {
+    hasEntryPoints = true;
     try {
-      await esbuild.build(buildOptions);
-      console.log('Build completed successfully!');
+      await esbuild.build(esmBuildOptions);
+      console.log('ESM build completed (service worker, popups)');
     } catch (error) {
-      console.error('Build failed:', error);
+      console.error('ESM build failed:', error);
       process.exit(1);
     }
-  } else {
+  }
+
+  // Build IIFE entry points (content scripts)
+  if (existingIifeEntryPoints.length > 0) {
+    hasEntryPoints = true;
+    try {
+      await esbuild.build(iifeBuildOptions);
+      console.log('IIFE build completed (content scripts)');
+    } catch (error) {
+      console.error('IIFE build failed:', error);
+      process.exit(1);
+    }
+  }
+
+  if (!hasEntryPoints) {
     console.log('No entry points found yet - only copied static assets');
     // Create dist folder structure for verification
     const distDir = join(__dirname, 'dist');
     if (!existsSync(distDir)) {
       mkdirSync(distDir, { recursive: true });
     }
+  } else {
+    console.log('Build completed successfully!');
   }
 
   console.log('Output directory: dist/');

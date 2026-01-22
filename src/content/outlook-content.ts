@@ -110,18 +110,38 @@ export function parseOutlookUrl(url: string): {
  * @returns The subject or undefined if not found
  */
 export function getEmailSubject(): string | undefined {
-  // Method 1: Look for the subject in the reading pane header
-  // Outlook uses various class names for the subject line
-  const subjectSelectors = [
+  // Method 1: Look for subject in the reading pane header (modern Outlook)
+  // The subject is in a div with role="heading" and class containing "allowTextSelection"
+  const subjectHeading = document.querySelector('div[role="heading"].allowTextSelection');
+  if (subjectHeading) {
+    // Get the span children to find the actual subject text (excludes "Summarize" button etc.)
+    const spans = subjectHeading.querySelectorAll('span');
+    for (const span of spans) {
+      const text = span.textContent?.trim();
+      // Subject should be reasonably long and not contain UI button text
+      if (text && text.length > 5 && text.length < 500 && !text.includes('Summarize')) {
+        return text;
+      }
+    }
+    // Fallback: use heading text but clean it up
+    const headingText = subjectHeading.textContent?.trim();
+    if (headingText) {
+      // Remove "Summarize" button text if present
+      const cleaned = headingText.replace(/Summarize$/, '').trim();
+      if (cleaned.length > 0 && cleaned.length < 500) {
+        return cleaned;
+      }
+    }
+  }
+
+  // Method 2: Legacy selectors for older Outlook versions
+  const legacySelectors = [
     '[data-app-section="ConversationTopic"]',
-    '[role="heading"][aria-level="2"]',
     '.ms-font-xl.allowTextSelection',
-    '.hcptT', // Subject in message list
     'span[id*="SubjectLine"]',
-    '[aria-label*="Subject"]',
   ];
 
-  for (const selector of subjectSelectors) {
+  for (const selector of legacySelectors) {
     const element = document.querySelector(selector);
     if (element && element.textContent) {
       const text = element.textContent.trim();
@@ -131,7 +151,7 @@ export function getEmailSubject(): string | undefined {
     }
   }
 
-  // Method 2: Try document title (often contains subject)
+  // Method 3: Try document title (often contains subject)
   const title = document.title;
   if (title && !title.includes('Outlook') && !title.includes('Mail')) {
     // Outlook title format is often "Subject - Outlook"
@@ -151,23 +171,41 @@ export function getEmailSubject(): string | undefined {
  */
 export function getEmailBody(): string | undefined {
   try {
-    const bodySelectors = [
+    // Primary method: Find all "Message body" elements and return the one with content
+    // Outlook often has multiple (e.g., draft + actual email), we need the one with text
+    const messageBodies = document.querySelectorAll('[aria-label="Message body"]');
+    for (const element of messageBodies) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 0) {
+        console.debug('[Asana Extension] Outlook body extracted using [aria-label="Message body"]');
+        return text.length > 1000 ? text.substring(0, 1000) : text;
+      }
+    }
+
+    // Fallback: Try role="document" elements that might contain email content
+    const documents = document.querySelectorAll('[role="document"]');
+    for (const element of documents) {
+      const text = element.textContent?.trim();
+      if (text && text.length > 50) {
+        console.debug('[Asana Extension] Outlook body extracted using [role="document"]');
+        return text.length > 1000 ? text.substring(0, 1000) : text;
+      }
+    }
+
+    // Legacy fallback selectors (may work on older Outlook versions)
+    const legacySelectors = [
       '[data-app-section="ConversationReadingPane"]',
-      '.XbIp4.jmmB7.GNqVo',
-      '[aria-label="Message body"]',
     ];
 
-    for (const selector of bodySelectors) {
+    for (const selector of legacySelectors) {
       const element = document.querySelector(selector);
       if (element && element.textContent) {
         const text = element.textContent.trim();
         if (text && text.length > 0) {
           console.debug(`[Asana Extension] Outlook body extracted using selector: ${selector}`);
-          // Truncate to 1000 chars
           return text.length > 1000 ? text.substring(0, 1000) : text;
         }
       }
-      console.debug(`[Asana Extension] Outlook body selector failed: ${selector}`);
     }
 
     console.debug('[Asana Extension] Could not extract email body from Outlook DOM - all selectors failed');
@@ -187,22 +225,52 @@ export function getEmailBody(): string | undefined {
  */
 export function getSenderInfo(): string | undefined {
   try {
-    // Name selectors (preferred - return name when available)
-    const nameSelectors = [
+    // Method 1: Look for span with aria-label starting with "From:" inside email message
+    // This contains the sender in format "Name<email@domain.com>"
+    const emailMessageContainers = document.querySelectorAll('[aria-label="Email message"]');
+    for (const container of emailMessageContainers) {
+      const fromSpan = container.querySelector('span[aria-label^="From:"]');
+      if (fromSpan) {
+        const text = fromSpan.textContent?.trim();
+        if (text && text.length > 0 && text.length < 200) {
+          // Extract just the name part before < if present
+          if (text.includes('<') && text.includes('@')) {
+            const namePart = text.split('<')[0].trim();
+            if (namePart && namePart.length > 0) {
+              console.debug('[Asana Extension] Outlook sender name extracted from From span');
+              return namePart;
+            }
+          }
+          console.debug('[Asana Extension] Outlook sender extracted from From span');
+          return text;
+        }
+      }
+    }
+
+    // Method 2: Look for headings containing email pattern (Name<email@domain.com>)
+    // within email message containers
+    for (const container of emailMessageContainers) {
+      const headings = container.querySelectorAll('[role="heading"] span, [role="heading"]');
+      for (const heading of headings) {
+        const text = heading.textContent?.trim();
+        if (text && text.includes('<') && text.includes('@') && text.includes('>')) {
+          const namePart = text.split('<')[0].trim();
+          if (namePart && namePart.length > 0) {
+            console.debug('[Asana Extension] Outlook sender extracted from heading pattern');
+            return namePart;
+          }
+          return text;
+        }
+      }
+    }
+
+    // Method 3: Legacy selectors for older Outlook versions
+    const legacySelectors = [
       '[data-app-section="FromLine"] span',
       'span[id*="PersonaName"]',
-      '.OZZZK', // Sender name class
-      '[aria-label*="From"]',
     ];
 
-    // Email fallback selectors (use when name not available)
-    const emailSelectors = [
-      '[role="img"][aria-label*="@"]',
-      'button[aria-label*="@"]',
-    ];
-
-    // Try name selectors first
-    for (const selector of nameSelectors) {
+    for (const selector of legacySelectors) {
       const element = document.querySelector(selector);
       if (element && element.textContent) {
         const text = element.textContent.trim();
@@ -211,25 +279,19 @@ export function getSenderInfo(): string | undefined {
           return text;
         }
       }
-      console.debug(`[Asana Extension] Outlook sender selector failed: ${selector}`);
     }
 
-    // Fall back to email selectors
-    for (const selector of emailSelectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        // Extract email from aria-label attribute
-        const ariaLabel = element.getAttribute('aria-label');
-        if (ariaLabel) {
-          // Extract email address from aria-label (e.g., "Profile picture of john@example.com")
-          const emailMatch = ariaLabel.match(/[\w.+-]+@[\w.-]+\.\w+/);
-          if (emailMatch) {
-            console.debug(`[Asana Extension] Outlook sender extracted using selector: ${selector} (email match)`);
-            return emailMatch[0];
-          }
+    // Method 4: Email fallback - look for any element with email in aria-label
+    const emailElements = document.querySelectorAll('[role="img"][aria-label*="@"], button[aria-label*="@"]');
+    for (const element of emailElements) {
+      const ariaLabel = element.getAttribute('aria-label');
+      if (ariaLabel) {
+        const emailMatch = ariaLabel.match(/[\w.+-]+@[\w.-]+\.\w+/);
+        if (emailMatch) {
+          console.debug('[Asana Extension] Outlook sender extracted from aria-label email');
+          return emailMatch[0];
         }
       }
-      console.debug(`[Asana Extension] Outlook sender selector failed: ${selector}`);
     }
 
     console.debug('[Asana Extension] Could not extract sender info from Outlook DOM - all selectors failed');

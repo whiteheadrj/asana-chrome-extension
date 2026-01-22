@@ -7,7 +7,13 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseOutlookUrl, detectOutlookVariant, getEmailBody } from '../outlook-content.js';
+import {
+  parseOutlookUrl,
+  detectOutlookVariant,
+  getEmailBody,
+  getEmailSubject,
+  getSenderInfo,
+} from '../outlook-content.js';
 
 // =============================================================================
 // getEmailBody Tests
@@ -28,10 +34,10 @@ describe('getEmailBody', () => {
     vi.restoreAllMocks();
   });
 
-  describe('primary selector ([data-app-section="ConversationReadingPane"])', () => {
-    it('returns body text from ConversationReadingPane selector', () => {
+  describe('primary selector ([aria-label="Message body"])', () => {
+    it('returns body text from Message body aria-label', () => {
       mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane">
+        <div aria-label="Message body">
           This is the email body content from Outlook.
         </div>
       `;
@@ -42,7 +48,7 @@ describe('getEmailBody', () => {
 
     it('trims whitespace from body text', () => {
       mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane">
+        <div aria-label="Message body">
 
           Trimmed email content.
 
@@ -52,41 +58,80 @@ describe('getEmailBody', () => {
       const result = getEmailBody();
       expect(result).toBe('Trimmed email content.');
     });
-  });
 
-  describe('fallback selector (.XbIp4.jmmB7.GNqVo)', () => {
-    it('returns body from reading pane body class when primary fails', () => {
+    it('skips empty Message body elements and finds one with content', () => {
+      // This tests the key fix: when there are multiple Message body elements
+      // (e.g., a draft + actual email), find the one with content
       mockContainer.innerHTML = `
-        <div class="XbIp4 jmmB7 GNqVo">
-          Fallback email body content from class selector.
-        </div>
-      `;
-
-      const result = getEmailBody();
-      expect(result).toBe('Fallback email body content from class selector.');
-    });
-
-    it('uses primary selector when both are present', () => {
-      mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane">Primary content.</div>
-        <div class="XbIp4 jmmB7 GNqVo">Fallback content.</div>
-      `;
-
-      const result = getEmailBody();
-      expect(result).toBe('Primary content.');
-    });
-  });
-
-  describe('tertiary selector ([aria-label="Message body"])', () => {
-    it('returns body from Message body aria-label when others fail', () => {
-      mockContainer.innerHTML = `
+        <div aria-label="Message body"></div>
         <div aria-label="Message body">
-          Third fallback email body via aria-label.
+          Actual email content from second element.
         </div>
       `;
 
       const result = getEmailBody();
-      expect(result).toBe('Third fallback email body via aria-label.');
+      expect(result).toBe('Actual email content from second element.');
+    });
+
+    it('skips whitespace-only Message body elements', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Message body">   </div>
+        <div aria-label="Message body">
+          Content after whitespace-only element.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Content after whitespace-only element.');
+    });
+  });
+
+  describe('fallback selector ([role="document"])', () => {
+    it('returns body from role=document when Message body fails', () => {
+      mockContainer.innerHTML = `
+        <div role="document">
+          This is email body content from a document role element with enough text to pass the length check.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe(
+        'This is email body content from a document role element with enough text to pass the length check.'
+      );
+    });
+
+    it('ignores short document content (under 50 chars)', () => {
+      mockContainer.innerHTML = `
+        <div role="document">Short text</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBeUndefined();
+    });
+  });
+
+  describe('legacy selector ([data-app-section="ConversationReadingPane"])', () => {
+    it('returns body from ConversationReadingPane selector', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationReadingPane">
+          Legacy email body content from Outlook.
+        </div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Legacy email body content from Outlook.');
+    });
+  });
+
+  describe('selector priority', () => {
+    it('uses Message body aria-label over role=document', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Message body">Primary content from aria-label.</div>
+        <div role="document">This is fallback content from document role element that should not be used.</div>
+      `;
+
+      const result = getEmailBody();
+      expect(result).toBe('Primary content from aria-label.');
     });
   });
 
@@ -109,18 +154,10 @@ describe('getEmailBody', () => {
       expect(result).toBeUndefined();
     });
 
-    it('returns undefined when element has no text content', () => {
+    it('returns undefined when all Message body elements are empty', () => {
       mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane"></div>
-      `;
-
-      const result = getEmailBody();
-      expect(result).toBeUndefined();
-    });
-
-    it('returns undefined when element has only whitespace', () => {
-      mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane">   </div>
+        <div aria-label="Message body"></div>
+        <div aria-label="Message body">   </div>
       `;
 
       const result = getEmailBody();
@@ -132,7 +169,7 @@ describe('getEmailBody', () => {
     it('truncates at 1000 chars', () => {
       const longContent = 'A'.repeat(1500);
       mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane">${longContent}</div>
+        <div aria-label="Message body">${longContent}</div>
       `;
 
       const result = getEmailBody();
@@ -144,7 +181,7 @@ describe('getEmailBody', () => {
     it('does not truncate body under 1000 chars', () => {
       const shortContent = 'B'.repeat(500);
       mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane">${shortContent}</div>
+        <div aria-label="Message body">${shortContent}</div>
       `;
 
       const result = getEmailBody();
@@ -155,7 +192,7 @@ describe('getEmailBody', () => {
     it('returns exactly 1000 chars when content is exactly 1000', () => {
       const exactContent = 'C'.repeat(1000);
       mockContainer.innerHTML = `
-        <div data-app-section="ConversationReadingPane">${exactContent}</div>
+        <div aria-label="Message body">${exactContent}</div>
       `;
 
       const result = getEmailBody();
@@ -166,15 +203,296 @@ describe('getEmailBody', () => {
 
   describe('error handling', () => {
     it('returns undefined on DOM query error', () => {
-      // Mock document.querySelector to throw
-      const mockQuerySelector = vi.spyOn(document, 'querySelector').mockImplementation(() => {
-        throw new Error('DOM error');
-      });
+      // Mock document.querySelectorAll to throw
+      const mockQuerySelectorAll = vi
+        .spyOn(document, 'querySelectorAll')
+        .mockImplementation(() => {
+          throw new Error('DOM error');
+        });
 
       const result = getEmailBody();
       expect(result).toBeUndefined();
 
-      mockQuerySelector.mockRestore();
+      mockQuerySelectorAll.mockRestore();
+    });
+  });
+});
+
+// =============================================================================
+// getEmailSubject Tests
+// =============================================================================
+
+describe('getEmailSubject', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (div[role="heading"].allowTextSelection)', () => {
+    it('extracts subject from heading span', () => {
+      mockContainer.innerHTML = `
+        <div role="heading" class="allowTextSelection">
+          <span>Test Email Subject Line</span>
+          <button>Summarize</button>
+        </div>
+      `;
+
+      const result = getEmailSubject();
+      expect(result).toBe('Test Email Subject Line');
+    });
+
+    it('ignores Summarize button text', () => {
+      mockContainer.innerHTML = `
+        <div role="heading" class="allowTextSelection">
+          <span>Important Meeting Tomorrow</span>
+          <span>Summarize</span>
+        </div>
+      `;
+
+      const result = getEmailSubject();
+      expect(result).toBe('Important Meeting Tomorrow');
+    });
+
+    it('ignores short spans (5 chars or less)', () => {
+      mockContainer.innerHTML = `
+        <div role="heading" class="allowTextSelection">
+          <span>Hi</span>
+          <span>This is the actual subject line</span>
+        </div>
+      `;
+
+      const result = getEmailSubject();
+      expect(result).toBe('This is the actual subject line');
+    });
+
+    it('cleans up heading text when no valid span found', () => {
+      mockContainer.innerHTML = `
+        <div role="heading" class="allowTextSelection">
+          Subject Without SpanSummarize
+        </div>
+      `;
+
+      const result = getEmailSubject();
+      expect(result).toBe('Subject Without Span');
+    });
+  });
+
+  describe('legacy selectors', () => {
+    it('falls back to data-app-section selector', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ConversationTopic">
+          Legacy Subject Format
+        </div>
+      `;
+
+      const result = getEmailSubject();
+      expect(result).toBe('Legacy Subject Format');
+    });
+
+    it('falls back to ms-font-xl class selector', () => {
+      mockContainer.innerHTML = `
+        <div class="ms-font-xl allowTextSelection">
+          Subject from Font Class
+        </div>
+      `;
+
+      const result = getEmailSubject();
+      expect(result).toBe('Subject from Font Class');
+    });
+  });
+
+  describe('document title fallback', () => {
+    it('extracts subject from document title when no DOM elements match', () => {
+      // Save original title
+      const originalTitle = document.title;
+      document.title = 'Email Subject - Outlook';
+
+      mockContainer.innerHTML = '<div class="unrelated">No subject elements</div>';
+
+      const result = getEmailSubject();
+      // The function checks if title contains 'Outlook' and skips it
+      expect(result).toBeUndefined();
+
+      // Restore title
+      document.title = originalTitle;
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns undefined when no subject found', () => {
+      mockContainer.innerHTML = '<div class="unrelated">No subject here</div>';
+
+      const result = getEmailSubject();
+      expect(result).toBeUndefined();
+    });
+
+    it('rejects subjects over 500 characters', () => {
+      const longSubject = 'A'.repeat(501);
+      mockContainer.innerHTML = `
+        <div role="heading" class="allowTextSelection">
+          <span>${longSubject}</span>
+        </div>
+      `;
+
+      const result = getEmailSubject();
+      // Should skip the too-long span and return undefined (no fallback)
+      expect(result).toBeUndefined();
+    });
+  });
+});
+
+// =============================================================================
+// getSenderInfo Tests
+// =============================================================================
+
+describe('getSenderInfo', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (span[aria-label^="From:"] in Email message)', () => {
+    it('extracts sender name from From span with email', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span aria-label="From: John Doe">John Doe<john@example.com></span>
+        </div>
+      `;
+
+      const result = getSenderInfo();
+      expect(result).toBe('John Doe');
+    });
+
+    it('extracts full text when no email pattern', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span aria-label="From: Support Team">Support Team</span>
+        </div>
+      `;
+
+      const result = getSenderInfo();
+      expect(result).toBe('Support Team');
+    });
+
+    it('handles multiple Email message containers', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span aria-label="From: First Sender">First Sender<first@example.com></span>
+        </div>
+        <div aria-label="Email message">
+          <span aria-label="From: Second Sender">Second Sender<second@example.com></span>
+        </div>
+      `;
+
+      const result = getSenderInfo();
+      // Should return the first one found
+      expect(result).toBe('First Sender');
+    });
+  });
+
+  describe('heading pattern fallback', () => {
+    it('extracts sender from heading with email pattern', () => {
+      // Create DOM manually to avoid HTML parsing issues with < and >
+      const emailContainer = document.createElement('div');
+      emailContainer.setAttribute('aria-label', 'Email message');
+      const headingSpan = document.createElement('span');
+      headingSpan.setAttribute('role', 'heading');
+      headingSpan.textContent = 'Notifications<notifications@example.com>';
+      emailContainer.appendChild(headingSpan);
+      mockContainer.appendChild(emailContainer);
+
+      const result = getSenderInfo();
+      expect(result).toBe('Notifications');
+    });
+  });
+
+  describe('legacy selectors', () => {
+    it('falls back to data-app-section FromLine', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="FromLine">
+          <span>Legacy Sender Name</span>
+        </div>
+      `;
+
+      const result = getSenderInfo();
+      expect(result).toBe('Legacy Sender Name');
+    });
+
+    it('falls back to PersonaName id selector', () => {
+      mockContainer.innerHTML = `
+        <span id="PersonaName_123">Persona Sender</span>
+      `;
+
+      const result = getSenderInfo();
+      expect(result).toBe('Persona Sender');
+    });
+  });
+
+  describe('email fallback from aria-label', () => {
+    it('extracts email from role=img aria-label', () => {
+      mockContainer.innerHTML = `
+        <div role="img" aria-label="Profile picture of sender@example.com"></div>
+      `;
+
+      const result = getSenderInfo();
+      expect(result).toBe('sender@example.com');
+    });
+
+    it('extracts email from button aria-label', () => {
+      mockContainer.innerHTML = `
+        <button aria-label="Contact card for user@domain.org"></button>
+      `;
+
+      const result = getSenderInfo();
+      expect(result).toBe('user@domain.org');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns undefined when no sender found', () => {
+      mockContainer.innerHTML = '<div class="unrelated">No sender here</div>';
+
+      const result = getSenderInfo();
+      expect(result).toBeUndefined();
+    });
+
+    it('rejects sender names over 200 characters', () => {
+      const longName = 'A'.repeat(201);
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span aria-label="From: Long">${longName}</span>
+        </div>
+      `;
+
+      const result = getSenderInfo();
+      expect(result).toBeUndefined();
+    });
+
+    it('handles error gracefully', () => {
+      const mockQuerySelectorAll = vi
+        .spyOn(document, 'querySelectorAll')
+        .mockImplementation(() => {
+          throw new Error('DOM error');
+        });
+
+      const result = getSenderInfo();
+      expect(result).toBeUndefined();
+
+      mockQuerySelectorAll.mockRestore();
     });
   });
 });
@@ -218,8 +536,7 @@ describe('parseOutlookUrl', () => {
     });
 
     it('extracts itemId from sentitems URL', () => {
-      const url =
-        'https://outlook.live.com/mail/0/sentitems/id/ABC123xyz';
+      const url = 'https://outlook.live.com/mail/0/sentitems/id/ABC123xyz';
       const result = parseOutlookUrl(url);
 
       expect(result.variant).toBe('personal');
