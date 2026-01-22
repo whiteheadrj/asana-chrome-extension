@@ -440,3 +440,29 @@ export async function isAuthenticated(): Promise<boolean> {
 export async function logout(): Promise<void> {
   await remove(STORAGE_KEYS.OAUTH_TOKENS);
 }
+
+/**
+ * Verify that tokens were correctly stored by reading them back
+ * Used for read-after-write verification to detect storage failures
+ * @param expected - The tokens that were expected to be stored
+ * @returns Promise resolving to true if tokens match, false otherwise
+ */
+export async function verifyTokenStorage(expected: OAuthTokens): Promise<boolean> {
+  const stored = await getTokens();
+
+  if (!stored) {
+    console.warn('[OAuth] Token storage verification failed: no tokens found in storage');
+    return false;
+  }
+
+  if (
+    stored.accessToken !== expected.accessToken ||
+    stored.refreshToken !== expected.refreshToken ||
+    stored.expiresAt !== expected.expiresAt
+  ) {
+    console.warn('[OAuth] Token storage verification failed: stored tokens do not match expected values');
+    return false;
+  }
+
+  return true;
+}

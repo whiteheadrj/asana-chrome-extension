@@ -55,7 +55,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - **Done when**: Both commands exit 0
   - **Commit**: `chore(oauth): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 1.5 Add verifyTokenStorage function
+- [x] 1.5 Add verifyTokenStorage function
   - **Do**:
     1. Open `src/background/oauth.ts`
     2. Import `getTokens` if not already imported
