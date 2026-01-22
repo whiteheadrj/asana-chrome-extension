@@ -30,6 +30,32 @@ const ASANA_TOKEN_ENDPOINT = 'https://app.asana.com/-/oauth_token';
 const CLIENT_ID = ASANA_CLIENT_ID;
 const CLIENT_SECRET = ASANA_CLIENT_SECRET;
 
+// Retry configuration (matching asana-api.ts pattern)
+const MAX_REFRESH_RETRIES = 3;
+const BASE_DELAY_MS = 1000; // 1 second
+
+// =============================================================================
+// Retry Helpers
+// =============================================================================
+
+/**
+ * Sleep for a specified number of milliseconds
+ * @param ms - The number of milliseconds to sleep
+ * @returns Promise that resolves after the specified delay
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate exponential backoff delay for a given retry attempt
+ * @param attempt - The retry attempt number (0-based)
+ * @returns Delay in milliseconds (2^attempt * BASE_DELAY_MS)
+ */
+function calculateBackoffDelay(attempt: number): number {
+  return BASE_DELAY_MS * Math.pow(2, attempt);
+}
+
 // =============================================================================
 // Asana Error Types
 // =============================================================================

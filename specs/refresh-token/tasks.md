@@ -71,7 +71,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - _Requirements: FR-5_
   - _Design: verifyTokenStorage component_
 
-- [ ] 1.6 Add retry constants and sleep helper to oauth.ts
+- [x] 1.6 Add retry constants and sleep helper to oauth.ts
   - **Do**:
     1. Open `src/background/oauth.ts`
     2. Add constants (matching asana-api.ts pattern):
