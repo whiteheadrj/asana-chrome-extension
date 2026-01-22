@@ -85,14 +85,35 @@ export class AuthFailedError extends ExtensionError {
 }
 
 /**
+ * Get user-friendly message for Asana OAuth error codes
+ */
+function getMessageForErrorCode(errorCode?: string): string {
+  switch (errorCode) {
+    case 'invalid_grant':
+      return 'Your session has expired. Please log in again.';
+    case 'invalid_client':
+      return 'Configuration error. Please reinstall the extension.';
+    case 'unauthorized_client':
+      return 'Configuration error. Please reinstall the extension.';
+    default:
+      return 'Your session has expired. Please log in again.';
+  }
+}
+
+/**
  * Error thrown when tokens have expired and cannot be refreshed
  */
 export class AuthExpiredError extends ExtensionError {
   readonly code = 'AUTH_EXPIRED' as const;
-  readonly userMessage = 'Your session has expired. Please log in again.';
+  readonly asanaErrorCode?: string;
 
-  constructor(message = 'Session expired', cause?: unknown) {
+  constructor(message = 'Session expired', cause?: unknown, asanaErrorCode?: string) {
     super(message, cause);
+    this.asanaErrorCode = asanaErrorCode;
+  }
+
+  get userMessage(): string {
+    return getMessageForErrorCode(this.asanaErrorCode);
   }
 }
 

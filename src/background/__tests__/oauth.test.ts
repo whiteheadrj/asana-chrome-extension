@@ -16,6 +16,9 @@ import {
   isAuthenticated,
   logout,
   handleOAuthCallback,
+  parseAsanaError,
+  isRetryableError,
+  verifyTokenStorage,
 } from '../oauth.js';
 import { STORAGE_KEYS } from '../../shared/constants.js';
 import {
@@ -23,6 +26,7 @@ import {
   AuthFailedError,
   AuthExpiredError,
   NetworkOfflineError,
+  NetworkError,
 } from '../../shared/errors.js';
 
 // Mock navigator for offline detection
@@ -50,6 +54,148 @@ describe('oauth module', () => {
       value: originalNavigator,
       writable: true,
       configurable: true,
+    });
+  });
+
+  // ===========================================================================
+  // isRetryableError Helper
+  // ===========================================================================
+
+  describe('isRetryableError', () => {
+    it('returns true for 429 rate limit', () => {
+      const response = new Response(null, { status: 429 });
+      expect(isRetryableError(response)).toBe(true);
+    });
+
+    it('returns true for 500 server error', () => {
+      const response = new Response(null, { status: 500 });
+      expect(isRetryableError(response)).toBe(true);
+    });
+
+    it('returns true for 503 service unavailable', () => {
+      const response = new Response(null, { status: 503 });
+      expect(isRetryableError(response)).toBe(true);
+    });
+
+    it('returns false for 400 bad request', () => {
+      const response = new Response(null, { status: 400 });
+      expect(isRetryableError(response)).toBe(false);
+    });
+
+    it('returns false for 401 unauthorized', () => {
+      const response = new Response(null, { status: 401 });
+      expect(isRetryableError(response)).toBe(false);
+    });
+
+    it('returns false for 200 success', () => {
+      const response = new Response(null, { status: 200 });
+      expect(isRetryableError(response)).toBe(false);
+    });
+  });
+
+  // ===========================================================================
+  // verifyTokenStorage Helper
+  // ===========================================================================
+
+  describe('verifyTokenStorage', () => {
+    it('returns true when stored tokens match expected', async () => {
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      // Store the tokens first
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = expectedTokens;
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when no tokens stored', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      // Do not store tokens - leave storage empty
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('no tokens found in storage')
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('returns false when accessToken does not match', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'expected_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = {
+        accessToken: 'different_access',
+        refreshToken: 'test_refresh',
+        expiresAt: expectedTokens.expiresAt,
+      };
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('stored tokens do not match expected values')
+      );
+
+      warnSpy.mockRestore();
+    });
+
+    it('returns false when refreshToken does not match', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'expected_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = {
+        accessToken: 'test_access',
+        refreshToken: 'different_refresh',
+        expiresAt: expectedTokens.expiresAt,
+      };
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+
+      warnSpy.mockRestore();
+    });
+
+    it('returns false when expiresAt does not match', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      const expectedTokens = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 3600000,
+      };
+
+      mockStorage[STORAGE_KEYS.OAUTH_TOKENS] = {
+        accessToken: 'test_access',
+        refreshToken: 'test_refresh',
+        expiresAt: Date.now() + 7200000, // Different expiration
+      };
+
+      const result = await verifyTokenStorage(expectedTokens);
+      expect(result).toBe(false);
+
+      warnSpy.mockRestore();
     });
   });
 
@@ -137,6 +283,100 @@ describe('oauth module', () => {
       expect(challenge).not.toContain('+');
       expect(challenge).not.toContain('/');
       expect(challenge).not.toContain('=');
+    });
+  });
+
+  // ===========================================================================
+  // parseAsanaError Helper
+  // ===========================================================================
+
+  describe('parseAsanaError', () => {
+    it('parses valid JSON with error field', async () => {
+      const response = new Response(JSON.stringify({ error: 'invalid_grant' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('invalid_grant');
+    });
+
+    it('parses valid JSON with error_description', async () => {
+      const response = new Response(
+        JSON.stringify({
+          error: 'invalid_client',
+          error_description: 'Client authentication failed',
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+
+      const result = await parseAsanaError(response);
+
+      expect(result).not.toBeNull();
+      expect(result?.error).toBe('invalid_client');
+      expect(result?.error_description).toBe('Client authentication failed');
+    });
+
+    it('returns null for non-JSON response', async () => {
+      const response = new Response('Not JSON content', {
+        status: 500,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for empty body', async () => {
+      const response = new Response('', {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for malformed JSON', async () => {
+      const response = new Response('{ invalid json }', {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('returns null for JSON without error field', async () => {
+      const response = new Response(JSON.stringify({ message: 'Something went wrong' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const result = await parseAsanaError(response);
+
+      expect(result).toBeNull();
+    });
+
+    it('does not consume the original response body', async () => {
+      const response = new Response(JSON.stringify({ error: 'test_error' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      await parseAsanaError(response);
+
+      // Original response body should still be readable
+      const originalBody = await response.json();
+      expect(originalBody.error).toBe('test_error');
     });
   });
 
@@ -243,6 +483,383 @@ describe('oauth module', () => {
 
       expect(tokens.expiresAt).toBeGreaterThanOrEqual(expectedMinExpiration);
       expect(tokens.expiresAt).toBeLessThanOrEqual(expectedMaxExpiration);
+    });
+
+    // =========================================================================
+    // Retry Behavior Tests
+    // =========================================================================
+
+    it('retries on network error then succeeds', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'new_access_token',
+        refresh_token: 'new_refresh_token',
+        expires_in: 3600,
+      };
+
+      // Mock fetch to throw once (network error), then succeed
+      globalThis.fetch = vi.fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      const tokens = await tokenPromise;
+
+      expect(tokens.accessToken).toBe('new_access_token');
+      expect(tokens.refreshToken).toBe('new_refresh_token');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('retries on 5xx then succeeds', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'retry_success_token',
+        refresh_token: 'retry_success_refresh',
+        expires_in: 3600,
+      };
+
+      // Mock fetch to return 503 once, then succeed
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      const tokens = await tokenPromise;
+
+      expect(tokens.accessToken).toBe('retry_success_token');
+      expect(tokens.refreshToken).toBe('retry_success_refresh');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('retries on 429 rate limit then succeeds', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'rate_limit_success_token',
+        refresh_token: 'rate_limit_success_refresh',
+        expires_in: 3600,
+      };
+
+      // Mock fetch to return 429 once, then succeed
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      const tokens = await tokenPromise;
+
+      expect(tokens.accessToken).toBe('rate_limit_success_token');
+      expect(tokens.refreshToken).toBe('rate_limit_success_refresh');
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+      vi.useRealTimers();
+    });
+
+    it('respects max retries on persistent network failure', async () => {
+      vi.useFakeTimers();
+
+      // Mock fetch to throw 4 times (more than MAX_REFRESH_RETRIES = 3)
+      globalThis.fetch = vi.fn()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      // Wrap in a helper to catch rejection properly
+      let caughtError: Error | null = null;
+      const tokenPromise = refreshTokens('valid_refresh_token').catch((error) => {
+        caughtError = error;
+      });
+
+      // Advance timers to skip all backoff delays (1s + 2s + 4s = 7s)
+      await vi.advanceTimersByTimeAsync(10000);
+
+      await tokenPromise;
+
+      // Should have attempted 4 times (initial + 3 retries)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+      expect(caughtError).toBeInstanceOf(NetworkError);
+
+      vi.useRealTimers();
+    });
+
+    // =========================================================================
+    // No-Retry on Auth Errors
+    // =========================================================================
+
+    it('does not retry on invalid_grant', async () => {
+      // Mock 400 with invalid_grant body
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({
+          json: () => Promise.resolve({ error: 'invalid_grant' }),
+        }),
+        json: () => Promise.resolve({ error: 'invalid_grant' }),
+      });
+
+      let caughtError: AuthExpiredError | null = null;
+      try {
+        await refreshTokens('invalid_refresh_token');
+      } catch (error) {
+        caughtError = error as AuthExpiredError;
+      }
+
+      // Verify throws AuthExpiredError immediately (fetch called once)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(caughtError).toBeInstanceOf(AuthExpiredError);
+      expect(caughtError?.asanaErrorCode).toBe('invalid_grant');
+    });
+
+    it('does not retry on invalid_client', async () => {
+      // Mock 400 with invalid_client body
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({
+          json: () => Promise.resolve({ error: 'invalid_client' }),
+        }),
+        json: () => Promise.resolve({ error: 'invalid_client' }),
+      });
+
+      let caughtError: AuthExpiredError | null = null;
+      try {
+        await refreshTokens('invalid_client_token');
+      } catch (error) {
+        caughtError = error as AuthExpiredError;
+      }
+
+      // Verify throws AuthExpiredError immediately
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(caughtError).toBeInstanceOf(AuthExpiredError);
+      // Verify userMessage contains "Configuration error"
+      expect(caughtError?.userMessage).toContain('Configuration error');
+    });
+
+    // =========================================================================
+    // Storage Verification Tests
+    // =========================================================================
+
+    it('calls getTokens after setTokens for verification', async () => {
+      const mockResponse = {
+        access_token: 'verified_access_token',
+        refresh_token: 'verified_refresh_token',
+        expires_in: 3600,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      await refreshTokens('valid_refresh_token');
+
+      // getTokens should have been called after setTokens for verification
+      // Check mockStorage was written to and read from
+      const storedTokens = mockStorage[STORAGE_KEYS.OAUTH_TOKENS] as {
+        accessToken: string;
+        refreshToken: string;
+        expiresAt: number;
+      };
+      expect(storedTokens).toBeDefined();
+      expect(storedTokens.accessToken).toBe('verified_access_token');
+      expect(storedTokens.refreshToken).toBe('verified_refresh_token');
+    });
+
+    it('logs warning when storage verification fails', async () => {
+      const mockResponse = {
+        access_token: 'original_access_token',
+        refresh_token: 'original_refresh_token',
+        expires_in: 3600,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      // Spy on console.warn
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Mock chrome.storage.local.get to return different values than what was set
+      // This simulates storage verification failure
+      const originalGet = chromeMock.storage.local.get;
+      chromeMock.storage.local.get = vi.fn().mockImplementation((keys, callback) => {
+        // Return different tokens than what was stored
+        const differentTokens = {
+          [STORAGE_KEYS.OAUTH_TOKENS]: {
+            accessToken: 'different_access_token',
+            refreshToken: 'different_refresh_token',
+            expiresAt: Date.now() + 3600000,
+          },
+        };
+        if (callback) {
+          callback(differentTokens);
+        }
+        return Promise.resolve(differentTokens);
+      });
+
+      await refreshTokens('valid_refresh_token');
+
+      // Verify warning logged with '[OAuth]' prefix
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[OAuth] Token storage verification failed')
+      );
+
+      // Restore mocks
+      warnSpy.mockRestore();
+      chromeMock.storage.local.get = originalGet;
+    });
+
+    it('continues without error when storage verification fails', async () => {
+      const mockResponse = {
+        access_token: 'continue_access_token',
+        refresh_token: 'continue_refresh_token',
+        expires_in: 3600,
+      };
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      // Mock console.warn to suppress output
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Mock chrome.storage.local.get to return different values (verification fails)
+      const originalGet = chromeMock.storage.local.get;
+      chromeMock.storage.local.get = vi.fn().mockImplementation((keys, callback) => {
+        const differentTokens = {
+          [STORAGE_KEYS.OAUTH_TOKENS]: {
+            accessToken: 'totally_different_token',
+            refreshToken: 'totally_different_refresh',
+            expiresAt: 12345,
+          },
+        };
+        if (callback) {
+          callback(differentTokens);
+        }
+        return Promise.resolve(differentTokens);
+      });
+
+      // Should NOT throw, should still return tokens
+      const tokens = await refreshTokens('valid_refresh_token');
+
+      // Verify function still returns tokens (doesn't throw)
+      expect(tokens.accessToken).toBe('continue_access_token');
+      expect(tokens.refreshToken).toBe('continue_refresh_token');
+      expect(tokens.expiresAt).toBeGreaterThan(Date.now());
+
+      // Restore mocks
+      warnSpy.mockRestore();
+      chromeMock.storage.local.get = originalGet;
+    });
+
+    // =========================================================================
+    // Logging Output Tests
+    // =========================================================================
+
+    it('logs failure with timestamp, status, and error code', async () => {
+      // Mock 400 with invalid_grant body
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({
+          json: () => Promise.resolve({ error: 'invalid_grant' }),
+        }),
+        json: () => Promise.resolve({ error: 'invalid_grant' }),
+      });
+
+      // Spy on console.error
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        await refreshTokens('invalid_refresh_token');
+      } catch {
+        // Expected to throw
+      }
+
+      // Verify log contains: timestamp, status (400), error (invalid_grant), recoverable (false)
+      expect(errorSpy).toHaveBeenCalled();
+      const logOutput = errorSpy.mock.calls[0][0] as string;
+      expect(logOutput).toContain('Timestamp:');
+      expect(logOutput).toContain('HTTP Status: 400');
+      expect(logOutput).toContain('Error: invalid_grant');
+      expect(logOutput).toContain('Recoverable: false');
+
+      errorSpy.mockRestore();
+    });
+
+    it('logs retry attempts with attempt number', async () => {
+      vi.useFakeTimers();
+
+      const mockSuccessResponse = {
+        access_token: 'retry_success_token',
+        refresh_token: 'retry_success_refresh',
+        expires_in: 3600,
+      };
+
+      // Mock 503 once, then 200
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve(mockSuccessResponse),
+        });
+
+      // Spy on console.error
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const tokenPromise = refreshTokens('valid_refresh_token');
+
+      // Advance timers to skip the backoff delay
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await tokenPromise;
+
+      // Verify log shows "attempt 1/4" (since MAX_REFRESH_RETRIES=3, totalAttempts=4)
+      expect(errorSpy).toHaveBeenCalled();
+      const logOutput = errorSpy.mock.calls[0][0] as string;
+      expect(logOutput).toContain('Attempt: 1/4');
+
+      errorSpy.mockRestore();
+      vi.useRealTimers();
     });
   });
 

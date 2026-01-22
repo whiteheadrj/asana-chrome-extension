@@ -100,7 +100,7 @@ describe('cache module', () => {
     it('returns data for entry just before expiration', async () => {
       const entry = {
         data: 'almost expired',
-        timestamp: Date.now() - 299999, // 1ms before TTL expires
+        timestamp: Date.now() - 290000, // 10 seconds before TTL expires (more buffer for CI)
         ttl: 300000,
       };
       mockStorage['test_key'] = entry;

@@ -30,6 +30,139 @@ const ASANA_TOKEN_ENDPOINT = 'https://app.asana.com/-/oauth_token';
 const CLIENT_ID = ASANA_CLIENT_ID;
 const CLIENT_SECRET = ASANA_CLIENT_SECRET;
 
+// Retry configuration (matching asana-api.ts pattern)
+const MAX_REFRESH_RETRIES = 3;
+const BASE_DELAY_MS = 1000; // 1 second
+
+// =============================================================================
+// Retry Helpers
+// =============================================================================
+
+/**
+ * Sleep for a specified number of milliseconds
+ * @param ms - The number of milliseconds to sleep
+ * @returns Promise that resolves after the specified delay
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Calculate exponential backoff delay for a given retry attempt
+ * @param attempt - The retry attempt number (0-based)
+ * @returns Delay in milliseconds (2^attempt * BASE_DELAY_MS)
+ */
+function calculateBackoffDelay(attempt: number): number {
+  return BASE_DELAY_MS * Math.pow(2, attempt);
+}
+
+// =============================================================================
+// Asana Error Types
+// =============================================================================
+
+/**
+ * Asana OAuth error response structure
+ * Returned when token operations fail
+ */
+export interface AsanaOAuthError {
+  error: string;
+  error_description?: string;
+}
+
+/**
+ * Context for logging refresh token failures
+ * Used for diagnostic logging with structured data
+ */
+export interface RefreshFailureContext {
+  timestamp: string;
+  attempt: number;
+  totalAttempts: number;
+  httpStatus?: number;
+  asanaError?: string;
+  asanaDescription?: string;
+  isRecoverable: boolean;
+  errorType: 'auth' | 'config' | 'network' | 'unknown';
+}
+
+/**
+ * Determine if a response represents a retryable error
+ * Retryable: 5xx server errors, 429 rate limit
+ * Not retryable: success (2xx), 4xx client errors (except 429)
+ * @param response - The fetch Response to check
+ * @returns true if the error is retryable, false otherwise
+ */
+export function isRetryableError(response: Response): boolean {
+  // 429 (Too Many Requests / rate limit) is retryable
+  if (response.status === 429) {
+    return true;
+  }
+  // 5xx server errors are retryable
+  if (response.status >= 500) {
+    return true;
+  }
+  // 4xx (except 429) and success are not retryable
+  return false;
+}
+
+/**
+ * Determine the error type from an Asana OAuth error code
+ * @param errorCode - The error code from Asana's response
+ * @returns The categorized error type
+ */
+export function getAsanaErrorType(errorCode?: string): 'auth' | 'config' | 'network' | 'unknown' {
+  if (errorCode === 'invalid_grant') {
+    return 'auth';
+  }
+  if (errorCode === 'invalid_client' || errorCode === 'unauthorized_client') {
+    return 'config';
+  }
+  return 'unknown';
+}
+
+/**
+ * Log a refresh token failure with structured diagnostic information
+ * Never logs token values - only metadata about the failure
+ * @param context - The failure context to log
+ */
+export function logRefreshFailure(context: RefreshFailureContext): void {
+  console.error(
+    `[OAuth] Token refresh failed\n` +
+    `  Timestamp: ${context.timestamp}\n` +
+    `  Attempt: ${context.attempt}/${context.totalAttempts}\n` +
+    `  HTTP Status: ${context.httpStatus ?? 'N/A'}\n` +
+    `  Error: ${context.asanaError ?? 'N/A'}\n` +
+    `  Description: ${context.asanaDescription ?? 'N/A'}\n` +
+    `  Recoverable: ${context.isRecoverable}\n` +
+    `  Type: ${context.errorType}`
+  );
+}
+
+/**
+ * Parse an Asana error response from a fetch Response
+ * @param response - The fetch Response to parse
+ * @returns The parsed error or null if parsing fails
+ */
+export async function parseAsanaError(response: Response): Promise<AsanaOAuthError | null> {
+  try {
+    // Clone response to avoid consuming the body
+    const cloned = response.clone();
+    const data = await cloned.json();
+
+    // Validate the response has the expected error field
+    if (data && typeof data.error === 'string') {
+      return {
+        error: data.error,
+        error_description: typeof data.error_description === 'string' ? data.error_description : undefined,
+      };
+    }
+
+    return null;
+  } catch {
+    // JSON parse failed or other error
+    return null;
+  }
+}
+
 // =============================================================================
 // PKCE Helpers
 // =============================================================================
@@ -257,10 +390,12 @@ export async function exchangeCodeForTokens(
 
 /**
  * Refresh OAuth tokens using the refresh token
+ * Includes retry logic with exponential backoff for transient failures
  * @param refreshToken - The refresh token to use
  * @returns Promise resolving to new tokens
- * @throws AuthExpiredError if refresh token is invalid/expired
- * @throws NetworkError if network request fails
+ * @throws AuthExpiredError if refresh token is invalid/expired (not retried)
+ * @throws NetworkError if network request fails after all retries
+ * @throws NetworkOfflineError if device is offline
  */
 export async function refreshTokens(refreshToken: string): Promise<OAuthTokens> {
   // Check for offline state
@@ -268,48 +403,126 @@ export async function refreshTokens(refreshToken: string): Promise<OAuthTokens> 
     throw new NetworkOfflineError('Cannot refresh tokens while offline');
   }
 
-  let response: Response;
-  try {
-    response = await fetch(ASANA_TOKEN_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        refresh_token: refreshToken,
-      }).toString(),
-    });
-  } catch (error) {
-    throw wrapFetchError(error, 'Token refresh');
-  }
+  const totalAttempts = MAX_REFRESH_RETRIES + 1; // +1 because we count from 0
 
-  if (!response.ok) {
-    // 401 or 400 with invalid_grant means the refresh token is expired
-    if (response.status === 401 || response.status === 400) {
-      throw new AuthExpiredError('Your session has expired. Please log in again.');
+  for (let attempt = 0; attempt <= MAX_REFRESH_RETRIES; attempt++) {
+    let response: Response;
+
+    try {
+      response = await fetch(ASANA_TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: CLIENT_ID,
+          client_secret: CLIENT_SECRET,
+          refresh_token: refreshToken,
+        }).toString(),
+      });
+    } catch (error) {
+      // Network error (fetch threw): log, wait backoff, continue
+      const isLastAttempt = attempt === MAX_REFRESH_RETRIES;
+
+      logRefreshFailure({
+        timestamp: new Date().toISOString(),
+        attempt: attempt + 1,
+        totalAttempts,
+        isRecoverable: !isLastAttempt,
+        errorType: 'network',
+      });
+
+      if (isLastAttempt) {
+        throw new NetworkError('Connection failed after multiple retries', error);
+      }
+
+      await sleep(calculateBackoffDelay(attempt));
+      continue;
     }
-    throw wrapResponseError(response, 'Token refresh');
+
+    // Handle retryable errors (5xx server errors, 429 rate limit): retry with backoff
+    if (isRetryableError(response)) {
+      const isLastAttempt = attempt === MAX_REFRESH_RETRIES;
+
+      logRefreshFailure({
+        timestamp: new Date().toISOString(),
+        attempt: attempt + 1,
+        totalAttempts,
+        httpStatus: response.status,
+        isRecoverable: !isLastAttempt,
+        errorType: 'network',
+      });
+
+      if (isLastAttempt) {
+        throw new NetworkError('Connection failed after multiple retries');
+      }
+
+      await sleep(calculateBackoffDelay(attempt));
+      continue;
+    }
+
+    // Handle 4xx auth errors: NOT recoverable, parse error and throw immediately
+    if (response.status === 400 || response.status === 401) {
+      const asanaError = await parseAsanaError(response);
+      const errorCode = asanaError?.error;
+
+      // Determine error type for logging using extracted helper
+      const errorType = getAsanaErrorType(errorCode);
+
+      logRefreshFailure({
+        timestamp: new Date().toISOString(),
+        attempt: attempt + 1,
+        totalAttempts,
+        httpStatus: response.status,
+        asanaError: asanaError?.error,
+        asanaDescription: asanaError?.error_description,
+        isRecoverable: false, // Auth errors are not recoverable
+        errorType,
+      });
+
+      // Throw AuthExpiredError with Asana error code for user message generation
+      throw new AuthExpiredError(
+        asanaError?.error_description || 'Token refresh failed',
+        undefined,
+        errorCode
+      );
+    }
+
+    // Handle other non-success responses
+    if (!response.ok) {
+      throw wrapResponseError(response, 'Token refresh');
+    }
+
+    // Success: parse response and store tokens
+    const data = await response.json();
+
+    // Calculate expiration timestamp
+    // Asana tokens expire in 1 hour (3600 seconds)
+    const expiresAt = Date.now() + (data.expires_in * 1000);
+
+    const newTokens: OAuthTokens = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt,
+    };
+
+    // Store the new tokens
+    await setTokens(newTokens);
+
+    // Verify tokens were stored correctly (read-after-write check)
+    const verified = await verifyTokenStorage(newTokens);
+    if (!verified) {
+      // Log but don't fail - verification is defensive, not critical path
+      console.warn('[OAuth] Token storage verification failed after refresh');
+    }
+
+    return newTokens;
   }
 
-  const data = await response.json();
-
-  // Calculate expiration timestamp
-  // Asana tokens expire in 1 hour (3600 seconds)
-  const expiresAt = Date.now() + (data.expires_in * 1000);
-
-  const newTokens: OAuthTokens = {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt,
-  };
-
-  // Store the new tokens
-  await setTokens(newTokens);
-
-  return newTokens;
+  // This should never be reached due to the loop structure,
+  // but TypeScript needs it for completeness
+  throw new NetworkError('Connection failed after multiple retries');
 }
 
 /**
@@ -367,4 +580,30 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function logout(): Promise<void> {
   await remove(STORAGE_KEYS.OAUTH_TOKENS);
+}
+
+/**
+ * Verify that tokens were correctly stored by reading them back
+ * Used for read-after-write verification to detect storage failures
+ * @param expected - The tokens that were expected to be stored
+ * @returns Promise resolving to true if tokens match, false otherwise
+ */
+export async function verifyTokenStorage(expected: OAuthTokens): Promise<boolean> {
+  const stored = await getTokens();
+
+  if (!stored) {
+    console.warn('[OAuth] Token storage verification failed: no tokens found in storage');
+    return false;
+  }
+
+  if (
+    stored.accessToken !== expected.accessToken ||
+    stored.refreshToken !== expected.refreshToken ||
+    stored.expiresAt !== expected.expiresAt
+  ) {
+    console.warn('[OAuth] Token storage verification failed: stored tokens do not match expected values');
+    return false;
+  }
+
+  return true;
 }
