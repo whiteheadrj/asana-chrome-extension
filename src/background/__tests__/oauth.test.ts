@@ -437,6 +437,59 @@ describe('oauth module', () => {
 
       vi.useRealTimers();
     });
+
+    // =========================================================================
+    // No-Retry on Auth Errors
+    // =========================================================================
+
+    it('does not retry on invalid_grant', async () => {
+      // Mock 400 with invalid_grant body
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({
+          json: () => Promise.resolve({ error: 'invalid_grant' }),
+        }),
+        json: () => Promise.resolve({ error: 'invalid_grant' }),
+      });
+
+      let caughtError: AuthExpiredError | null = null;
+      try {
+        await refreshTokens('invalid_refresh_token');
+      } catch (error) {
+        caughtError = error as AuthExpiredError;
+      }
+
+      // Verify throws AuthExpiredError immediately (fetch called once)
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(caughtError).toBeInstanceOf(AuthExpiredError);
+      expect(caughtError?.asanaErrorCode).toBe('invalid_grant');
+    });
+
+    it('does not retry on invalid_client', async () => {
+      // Mock 400 with invalid_client body
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        clone: () => ({
+          json: () => Promise.resolve({ error: 'invalid_client' }),
+        }),
+        json: () => Promise.resolve({ error: 'invalid_client' }),
+      });
+
+      let caughtError: AuthExpiredError | null = null;
+      try {
+        await refreshTokens('invalid_client_token');
+      } catch (error) {
+        caughtError = error as AuthExpiredError;
+      }
+
+      // Verify throws AuthExpiredError immediately
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(caughtError).toBeInstanceOf(AuthExpiredError);
+      // Verify userMessage contains "Configuration error"
+      expect(caughtError?.userMessage).toContain('Configuration error');
+    });
   });
 
   // ===========================================================================

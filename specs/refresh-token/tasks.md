@@ -191,7 +191,7 @@ Focus: Add comprehensive unit tests for new behaviors.
   - _Requirements: AC-2.1, NFR-4_
   - _Design: Test Strategy - retry scenarios_
 
-- [ ] 3.3 Add tests for no-retry on auth errors
+- [x] 3.3 Add tests for no-retry on auth errors
   - **Do**:
     1. Add test: "does not retry on invalid_grant"
        - Mock 400 with invalid_grant body
