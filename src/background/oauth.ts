@@ -355,10 +355,12 @@ export async function exchangeCodeForTokens(
 
 /**
  * Refresh OAuth tokens using the refresh token
+ * Includes retry logic with exponential backoff for transient failures
  * @param refreshToken - The refresh token to use
  * @returns Promise resolving to new tokens
- * @throws AuthExpiredError if refresh token is invalid/expired
- * @throws NetworkError if network request fails
+ * @throws AuthExpiredError if refresh token is invalid/expired (not retried)
+ * @throws NetworkError if network request fails after all retries
+ * @throws NetworkOfflineError if device is offline
  */
 export async function refreshTokens(refreshToken: string): Promise<OAuthTokens> {
   // Check for offline state
@@ -366,48 +368,133 @@ export async function refreshTokens(refreshToken: string): Promise<OAuthTokens> 
     throw new NetworkOfflineError('Cannot refresh tokens while offline');
   }
 
-  let response: Response;
-  try {
-    response = await fetch(ASANA_TOKEN_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        client_id: CLIENT_ID,
-        client_secret: CLIENT_SECRET,
-        refresh_token: refreshToken,
-      }).toString(),
-    });
-  } catch (error) {
-    throw wrapFetchError(error, 'Token refresh');
-  }
+  const totalAttempts = MAX_REFRESH_RETRIES + 1; // +1 because we count from 0
 
-  if (!response.ok) {
-    // 401 or 400 with invalid_grant means the refresh token is expired
-    if (response.status === 401 || response.status === 400) {
-      throw new AuthExpiredError('Your session has expired. Please log in again.');
+  for (let attempt = 0; attempt <= MAX_REFRESH_RETRIES; attempt++) {
+    let response: Response;
+
+    try {
+      response = await fetch(ASANA_TOKEN_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: CLIENT_ID,
+          client_secret: CLIENT_SECRET,
+          refresh_token: refreshToken,
+        }).toString(),
+      });
+    } catch (error) {
+      // Network error (fetch threw): log, wait backoff, continue
+      const isLastAttempt = attempt === MAX_REFRESH_RETRIES;
+
+      logRefreshFailure({
+        timestamp: new Date().toISOString(),
+        attempt: attempt + 1,
+        totalAttempts,
+        isRecoverable: !isLastAttempt,
+        errorType: 'network',
+      });
+
+      if (isLastAttempt) {
+        throw new NetworkError('Connection failed after multiple retries', error);
+      }
+
+      await sleep(calculateBackoffDelay(attempt));
+      continue;
     }
-    throw wrapResponseError(response, 'Token refresh');
+
+    // Handle 5xx server errors: recoverable, retry with backoff
+    if (response.status >= 500) {
+      const isLastAttempt = attempt === MAX_REFRESH_RETRIES;
+
+      logRefreshFailure({
+        timestamp: new Date().toISOString(),
+        attempt: attempt + 1,
+        totalAttempts,
+        httpStatus: response.status,
+        isRecoverable: !isLastAttempt,
+        errorType: 'network',
+      });
+
+      if (isLastAttempt) {
+        throw new NetworkError('Connection failed after multiple retries');
+      }
+
+      await sleep(calculateBackoffDelay(attempt));
+      continue;
+    }
+
+    // Handle 4xx auth errors: NOT recoverable, parse error and throw immediately
+    if (response.status === 400 || response.status === 401) {
+      const asanaError = await parseAsanaError(response);
+      const errorCode = asanaError?.error;
+
+      // Determine error type for logging
+      let errorType: 'auth' | 'config' | 'unknown';
+      if (errorCode === 'invalid_grant') {
+        errorType = 'auth';
+      } else if (errorCode === 'invalid_client' || errorCode === 'unauthorized_client') {
+        errorType = 'config';
+      } else {
+        errorType = 'unknown';
+      }
+
+      logRefreshFailure({
+        timestamp: new Date().toISOString(),
+        attempt: attempt + 1,
+        totalAttempts,
+        httpStatus: response.status,
+        asanaError: asanaError?.error,
+        asanaDescription: asanaError?.error_description,
+        isRecoverable: false, // Auth errors are not recoverable
+        errorType,
+      });
+
+      // Throw AuthExpiredError with Asana error code for user message generation
+      throw new AuthExpiredError(
+        asanaError?.error_description || 'Token refresh failed',
+        undefined,
+        errorCode
+      );
+    }
+
+    // Handle other non-success responses
+    if (!response.ok) {
+      throw wrapResponseError(response, 'Token refresh');
+    }
+
+    // Success: parse response and store tokens
+    const data = await response.json();
+
+    // Calculate expiration timestamp
+    // Asana tokens expire in 1 hour (3600 seconds)
+    const expiresAt = Date.now() + (data.expires_in * 1000);
+
+    const newTokens: OAuthTokens = {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt,
+    };
+
+    // Store the new tokens
+    await setTokens(newTokens);
+
+    // Verify tokens were stored correctly (read-after-write check)
+    const verified = await verifyTokenStorage(newTokens);
+    if (!verified) {
+      // Log but don't fail - verification is defensive, not critical path
+      console.warn('[OAuth] Token storage verification failed after refresh');
+    }
+
+    return newTokens;
   }
 
-  const data = await response.json();
-
-  // Calculate expiration timestamp
-  // Asana tokens expire in 1 hour (3600 seconds)
-  const expiresAt = Date.now() + (data.expires_in * 1000);
-
-  const newTokens: OAuthTokens = {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresAt,
-  };
-
-  // Store the new tokens
-  await setTokens(newTokens);
-
-  return newTokens;
+  // This should never be reached due to the loop structure,
+  // but TypeScript needs it for completeness
+  throw new NetworkError('Connection failed after multiple retries');
 }
 
 /**

@@ -86,7 +86,7 @@ Focus: Validate retry logic, error parsing, and logging work end-to-end. Skip te
   - _Requirements: FR-3, AC-2.2_
   - _Design: retryWithBackoff configuration_
 
-- [ ] 1.7 Refactor refreshTokens with retry loop and error handling
+- [x] 1.7 Refactor refreshTokens with retry loop and error handling
   - **Do**:
     1. Open `src/background/oauth.ts`
     2. Wrap existing fetch call in retry loop (`for attempt = 0; attempt <= MAX_REFRESH_RETRIES`)
