@@ -10,6 +10,7 @@ import type {
   AsanaSection,
   AsanaTag,
   AsanaTask,
+  AsanaUser,
   LastUsedSelections,
   GmailEmailInfo,
   OutlookEmailInfo,
@@ -51,8 +52,16 @@ const elements = {
   workspaceSelect: document.getElementById('workspace-select') as HTMLSelectElement,
   projectSelect: document.getElementById('project-select') as HTMLSelectElement,
   sectionSelect: document.getElementById('section-select') as HTMLSelectElement,
+  assigneeSelect: document.getElementById('assignee-select') as HTMLSelectElement,
   tagsSelect: document.getElementById('tags-select') as HTMLSelectElement,
   selectedTagsContainer: document.getElementById('selected-tags') as HTMLElement,
+
+  // Due date inputs
+  dueDateInput: document.getElementById('due-date') as HTMLInputElement,
+  btnToday: document.getElementById('btn-today') as HTMLButtonElement,
+  btnTomorrow: document.getElementById('btn-tomorrow') as HTMLButtonElement,
+  includeTimeCheckbox: document.getElementById('include-time') as HTMLInputElement,
+  dueTimeInput: document.getElementById('due-time') as HTMLInputElement,
 
   // Buttons
   refreshCacheButton: document.getElementById('refresh-cache') as HTMLButtonElement,
@@ -77,6 +86,9 @@ interface PopupLocalState {
   projects: AsanaProject[];
   sections: AsanaSection[];
   tags: AsanaTag[];
+  users: AsanaUser[];
+  currentUserGid: string | null;
+  selectedAssigneeGid: string | null;
   selectedTagGids: string[];
   isAuthenticated: boolean;
   // AI state
@@ -89,8 +101,14 @@ interface PopupLocalState {
   accountEmail?: string; // Gmail account email (for task notes)
   emailBody?: string;
   emailSender?: string;
+  senderName?: string;
+  senderEmail?: string;
+  emailDate?: string;
   contentType?: 'email' | 'webpage';
   pageContent?: string; // For non-email pages (up to 2000 chars)
+  // Due date
+  dueDate: string | null;
+  dueTime: string | null;
   // Warnings
   warnings: Warning[];
 }
@@ -100,6 +118,9 @@ const state: PopupLocalState = {
   projects: [],
   sections: [],
   tags: [],
+  users: [],
+  currentUserGid: null,
+  selectedAssigneeGid: null,
   selectedTagGids: [],
   isAuthenticated: false,
   // AI state
@@ -112,8 +133,14 @@ const state: PopupLocalState = {
   accountEmail: undefined,
   emailBody: undefined,
   emailSender: undefined,
+  senderName: undefined,
+  senderEmail: undefined,
+  emailDate: undefined,
   contentType: undefined,
   pageContent: undefined,
+  // Due date
+  dueDate: null,
+  dueTime: null,
   // Warnings
   warnings: [],
 };
@@ -329,6 +356,9 @@ async function requestPageInfo(): Promise<void> {
             state.accountEmail = gmailInfo.accountEmail || undefined;
             state.emailBody = gmailInfo.emailBody;
             state.emailSender = gmailInfo.emailSender;
+            state.senderName = gmailInfo.senderName;
+            state.senderEmail = gmailInfo.senderEmail;
+            state.emailDate = gmailInfo.emailDate;
             state.contentType = 'email';
 
             // Handle warnings from Gmail content script
@@ -342,6 +372,9 @@ async function requestPageInfo(): Promise<void> {
             state.emailSubject = outlookInfo.subject;
             state.emailBody = outlookInfo.emailBody;
             state.emailSender = outlookInfo.emailSender;
+            state.senderName = outlookInfo.senderName;
+            state.senderEmail = outlookInfo.senderEmail;
+            state.emailDate = outlookInfo.emailDate;
             state.contentType = 'email';
           }
         } else {
@@ -515,7 +548,11 @@ async function loadWorkspaces(): Promise<void> {
         const savedWorkspace = state.workspaces.find(w => w.gid === lastUsed.workspaceGid);
         if (savedWorkspace) {
           elements.workspaceSelect.value = lastUsed.workspaceGid;
-          await loadProjects(lastUsed.workspaceGid, lastUsed);
+          // Load projects and users in parallel
+          await Promise.all([
+            loadProjects(lastUsed.workspaceGid, lastUsed),
+            loadUsers(lastUsed.workspaceGid, lastUsed),
+          ]);
         } else {
           showSection('form');
         }
@@ -544,6 +581,7 @@ async function loadProjects(workspaceGid: string, lastUsed?: LastUsedSelections)
   resetProjectDropdown();
   resetSectionDropdown();
   resetTagsDropdown();
+  // Note: resetAssigneeDropdown is called separately in loadUsers
 
   if (!workspaceGid) return;
 
@@ -644,6 +682,46 @@ async function loadTags(workspaceGid: string): Promise<void> {
   }
 }
 
+async function loadUsers(workspaceGid: string, lastUsed?: LastUsedSelections): Promise<void> {
+  resetAssigneeDropdown();
+
+  if (!workspaceGid) return;
+
+  elements.assigneeSelect.disabled = true;
+
+  try {
+    const response = await sendMessage<AsanaUser[]>({
+      type: 'GET_USERS',
+      workspaceGid,
+    });
+
+    if (response.success && response.data) {
+      state.users = response.data;
+      populateAssigneeDropdown(state.users, state.currentUserGid);
+
+      // Restore last-used assignee or default to current user
+      if (lastUsed?.assigneeGid) {
+        const savedAssignee = state.users.find(u => u.gid === lastUsed.assigneeGid);
+        if (savedAssignee) {
+          elements.assigneeSelect.value = lastUsed.assigneeGid;
+          state.selectedAssigneeGid = lastUsed.assigneeGid;
+        }
+      } else if (state.currentUserGid) {
+        // Default to current user
+        elements.assigneeSelect.value = state.currentUserGid;
+        state.selectedAssigneeGid = state.currentUserGid;
+      }
+    } else {
+      console.warn('Failed to load users:', response.error);
+    }
+  } catch (error) {
+    console.error('Load users error:', error);
+  } finally {
+    elements.assigneeSelect.disabled = false;
+  }
+}
+
+
 // =============================================================================
 // Dropdown Population
 // =============================================================================
@@ -687,6 +765,21 @@ function populateSectionDropdown(): void {
     option.value = section.gid;
     option.textContent = section.name;
     elements.sectionSelect.appendChild(option);
+  }
+}
+
+function populateAssigneeDropdown(users: AsanaUser[], currentUserGid: string | null): void {
+  // Clear existing options (keep first placeholder - "Unassigned")
+  while (elements.assigneeSelect.options.length > 1) {
+    elements.assigneeSelect.remove(1);
+  }
+
+  for (const user of users) {
+    const option = document.createElement('option');
+    option.value = user.gid;
+    // Mark current user with "(me)" suffix
+    option.textContent = user.gid === currentUserGid ? `${user.name} (me)` : user.name;
+    elements.assigneeSelect.appendChild(option);
   }
 }
 
@@ -737,6 +830,25 @@ function resetTagsDropdown(): void {
     elements.tagsSelect.remove(1);
   }
   elements.tagsSelect.disabled = true;
+}
+
+function resetAssigneeDropdown(): void {
+  state.users = [];
+  state.selectedAssigneeGid = null;
+  while (elements.assigneeSelect.options.length > 1) {
+    elements.assigneeSelect.remove(1);
+  }
+  elements.assigneeSelect.value = '';
+  elements.assigneeSelect.disabled = true;
+}
+
+function resetDueDateInputs(): void {
+  state.dueDate = null;
+  state.dueTime = null;
+  elements.dueDateInput.value = '';
+  elements.dueTimeInput.value = '';
+  elements.includeTimeCheckbox.checked = false;
+  elements.dueTimeInput.disabled = true;
 }
 
 // =============================================================================
@@ -793,12 +905,14 @@ async function saveLastUsedSelections(): Promise<void> {
   const workspaceGid = elements.workspaceSelect.value;
   const projectGid = elements.projectSelect.value;
   const sectionGid = elements.sectionSelect.value;
+  const assigneeGid = state.selectedAssigneeGid;
 
   if (workspaceGid && projectGid) {
     const lastUsed: LastUsedSelections = {
       workspaceGid,
       projectGid,
       sectionGid: sectionGid || undefined,
+      assigneeGid: assigneeGid || undefined,
     };
     await set(STORAGE_KEYS.LAST_USED_SELECTIONS, lastUsed);
   }
@@ -897,6 +1011,23 @@ async function handleSubmitTask(): Promise<void> {
       payload.tagGids = state.selectedTagGids;
     }
 
+    // Add assignee if selected
+    if (state.selectedAssigneeGid) {
+      payload.assignee = state.selectedAssigneeGid;
+    }
+
+    // Add due date/time
+    if (state.dueDate) {
+      if (state.dueTime && elements.includeTimeCheckbox.checked) {
+        // Use due_at for datetime (ISO format with timezone)
+        const dateTime = new Date(`${state.dueDate}T${state.dueTime}`);
+        payload.due_at = dateTime.toISOString();
+      } else {
+        // Use due_on for date only (YYYY-MM-DD format)
+        payload.due_on = state.dueDate;
+      }
+    }
+
     // Send to service worker
     const response = await sendMessage<AsanaTask>({
       type: 'CREATE_TASK',
@@ -953,7 +1084,11 @@ function setupEventListeners(): void {
   // Workspace change
   elements.workspaceSelect.addEventListener('change', async () => {
     const workspaceGid = elements.workspaceSelect.value;
-    await loadProjects(workspaceGid);
+    // Load projects and users in parallel
+    await Promise.all([
+      loadProjects(workspaceGid),
+      loadUsers(workspaceGid),
+    ]);
     updateSubmitButtonState();
   });
 
@@ -989,6 +1124,48 @@ function setupEventListeners(): void {
     }
   });
 
+  // Assignee change
+  elements.assigneeSelect.addEventListener('change', () => {
+    state.selectedAssigneeGid = elements.assigneeSelect.value || null;
+  });
+
+  // Due date input change
+  elements.dueDateInput.addEventListener('change', () => {
+    state.dueDate = elements.dueDateInput.value || null;
+  });
+
+  // Due time input change
+  elements.dueTimeInput.addEventListener('change', () => {
+    state.dueTime = elements.dueTimeInput.value || null;
+  });
+
+  // Today button
+  elements.btnToday.addEventListener('click', () => {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    elements.dueDateInput.value = dateStr;
+    state.dueDate = dateStr;
+  });
+
+  // Tomorrow button
+  elements.btnTomorrow.addEventListener('click', () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().split('T')[0];
+    elements.dueDateInput.value = dateStr;
+    state.dueDate = dateStr;
+  });
+
+  // Include time checkbox
+  elements.includeTimeCheckbox.addEventListener('change', () => {
+    const includeTime = elements.includeTimeCheckbox.checked;
+    elements.dueTimeInput.disabled = !includeTime;
+    if (!includeTime) {
+      elements.dueTimeInput.value = '';
+      state.dueTime = null;
+    }
+  });
+
   // Task name input
   elements.taskNameInput.addEventListener('input', updateSubmitButtonState);
 
@@ -1006,6 +1183,7 @@ function setupEventListeners(): void {
     elements.aiBadge.classList.add('hidden');
     state.aiSuggestionUsed = false;
     clearWarnings(); // Clear any previous warnings
+    resetDueDateInputs(); // Reset due date for new task
     updateSubmitButtonState();
 
     // Re-trigger AI generation for new task

@@ -169,7 +169,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - **Commit**: `feat(popup): add CSS styles for assignee and due date fields`
   - _Design: Popup UI styling_
 
-- [ ] 1.12 Wire up assignee dropdown and due date in popup.ts
+- [x] 1.12 Wire up assignee dropdown and due date in popup.ts
   - **Do**:
     1. Add DOM element references for new inputs
     2. Add to `PopupLocalState`: `users: AsanaUser[]`, `currentUserGid: string | null`, `selectedAssigneeGid: string | null`, `dueDate: string | null`, `dueTime: string | null`, `senderName?: string`, `senderEmail?: string`, `emailDate?: string`
