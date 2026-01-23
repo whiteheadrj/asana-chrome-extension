@@ -801,5 +801,143 @@ describe('asana-api module', () => {
       const url = new URL(call[0]);
       expect(url.searchParams.get('opt_fields')).toBe('gid,name,permalink_url');
     });
+
+    it('includes assignee in request body when provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        assignee: 'user123',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.assignee).toBe('user123');
+    });
+
+    it('excludes assignee from body when not provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.assignee).toBeUndefined();
+    });
+
+    it('includes due_on in request body when provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        due_on: '2026-01-23',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.due_on).toBe('2026-01-23');
+      expect(body.data.due_at).toBeUndefined();
+    });
+
+    it('includes due_at in request body when provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        due_at: '2026-01-23T14:30:00.000Z',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.due_at).toBe('2026-01-23T14:30:00.000Z');
+      expect(body.data.due_on).toBeUndefined();
+    });
+
+    it('uses due_at over due_on when both provided (mutual exclusion)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        due_on: '2026-01-23',
+        due_at: '2026-01-23T14:30:00.000Z',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      // due_at takes precedence per Asana API spec
+      expect(body.data.due_at).toBe('2026-01-23T14:30:00.000Z');
+      expect(body.data.due_on).toBeUndefined();
+    });
+
+    it('includes all new fields together in request body', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Complete Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Complete Task',
+        workspaceGid: 'workspace1',
+        projectGid: 'project1',
+        notes: 'Task notes',
+        sectionGid: 'section1',
+        tagGids: ['tag1'],
+        assignee: 'user456',
+        due_on: '2026-02-15',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      // Verify request body structure matches Asana API spec
+      expect(body.data.name).toBe('Complete Task');
+      expect(body.data.workspace).toBe('workspace1');
+      expect(body.data.projects).toContain('project1');
+      expect(body.data.notes).toBe('Task notes');
+      expect(body.data.memberships).toEqual([
+        { project: 'project1', section: 'section1' },
+      ]);
+      expect(body.data.tags).toEqual(['tag1']);
+      expect(body.data.assignee).toBe('user456');
+      expect(body.data.due_on).toBe('2026-02-15');
+    });
   });
 });

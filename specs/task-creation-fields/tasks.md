@@ -356,7 +356,7 @@ After POC validated, clean up code structure.
   - _Requirements: NFR-4_
   - _Design: Test Strategy - Unit Tests_
 
-- [ ] 3.6 Add integration tests for createTask with new fields
+- [x] 3.6 Add integration tests for createTask with new fields
   - **Do**:
     1. Add test: createTask includes assignee in request body
     2. Add test: createTask includes due_on in request body
