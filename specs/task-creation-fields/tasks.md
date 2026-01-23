@@ -23,7 +23,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-2, FR-3, FR-4, FR-4b, FR-11, FR-16_
   - _Design: AsanaUser Type & API, LastUsedSelections Extension_
 
-- [ ] 1.2 Implement getUsers and getCurrentUser API functions
+- [x] 1.2 Implement getUsers and getCurrentUser API functions
   - **Do**:
     1. Add `getUsers(workspaceGid: string): Promise<AsanaUser[]>` function
     2. Add `getCurrentUser(): Promise<AsanaUser>` function using `/users/me` endpoint

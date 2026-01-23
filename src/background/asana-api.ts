@@ -9,6 +9,7 @@ import type {
   AsanaSection,
   AsanaTag,
   AsanaTask,
+  AsanaUser,
   CreateTaskPayload,
 } from '../shared/types';
 import { ASANA_API_BASE } from '../shared/constants';
@@ -269,6 +270,53 @@ export async function getTags(workspaceGid: string): Promise<AsanaTag[]> {
     name: tag.name,
     workspaceGid,
   }));
+}
+
+// =============================================================================
+// User Functions
+// =============================================================================
+
+/**
+ * Get all users in a workspace
+ * @param workspaceGid - The workspace GID
+ * @returns Promise resolving to array of users
+ */
+export async function getUsers(workspaceGid: string): Promise<AsanaUser[]> {
+  const data = await asanaFetch<Array<{ gid: string; name: string; email: string }>>(
+    `/workspaces/${workspaceGid}/users`,
+    {
+      params: {
+        opt_fields: 'gid,name,email',
+      },
+    }
+  );
+
+  return data.map((user) => ({
+    gid: user.gid,
+    name: user.name,
+    email: user.email,
+  }));
+}
+
+/**
+ * Get the currently authenticated user
+ * @returns Promise resolving to the current user
+ */
+export async function getCurrentUser(): Promise<AsanaUser> {
+  const data = await asanaFetch<{ gid: string; name: string; email: string }>(
+    '/users/me',
+    {
+      params: {
+        opt_fields: 'gid,name,email',
+      },
+    }
+  );
+
+  return {
+    gid: data.gid,
+    name: data.name,
+    email: data.email,
+  };
 }
 
 // =============================================================================
