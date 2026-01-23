@@ -368,7 +368,7 @@ After POC validated, clean up code structure.
   - **Commit**: `test(api): add integration tests for createTask with assignee/due date`
   - _Design: Test Strategy - Integration Tests_
 
-- [ ] 3.7 Add E2E tests for task creation flow
+- [x] 3.7 Add E2E tests for task creation flow
   - **Do**:
     1. Add E2E test: create task with assignee (verify in Asana)
     2. Add E2E test: create task with due date (verify in Asana)
