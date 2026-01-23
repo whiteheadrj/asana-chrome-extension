@@ -254,7 +254,7 @@ After POC validated, clean up code structure.
   - **Commit**: `refactor(popup): add error handling for user loading`
   - _Design: Error Handling_
 
-- [ ] 2.3 [VERIFY] Quality checkpoint: popup refactoring
+- [x] 2.3 [VERIFY] Quality checkpoint: popup refactoring
   - **Do**: Run lint and type check
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: All commands exit 0
