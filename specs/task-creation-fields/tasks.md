@@ -342,7 +342,7 @@ After POC validated, clean up code structure.
   - _Requirements: NFR-4_
   - _Design: Test Strategy - Unit Tests_
 
-- [ ] 3.5 Add unit tests for Outlook getSenderDetails and getEmailDate
+- [x] 3.5 Add unit tests for Outlook getSenderDetails and getEmailDate
   - **Do**:
     1. Add tests to existing outlook-content.test.ts
     2. Test getSenderDetails parses "Name<email>" format
