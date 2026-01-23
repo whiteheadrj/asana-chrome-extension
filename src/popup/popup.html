@@ -111,6 +111,30 @@
         </select>
       </div>
 
+      <!-- Assignee Dropdown -->
+      <div class="form-group">
+        <label for="assignee-select">Assignee (optional)</label>
+        <select id="assignee-select" name="assigneeGid" disabled>
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+
+      <!-- Due Date Picker -->
+      <div class="form-group">
+        <label for="due-date">Due Date (optional)</label>
+        <div class="date-picker-group">
+          <input type="date" id="due-date" name="dueDate">
+          <div class="quick-pick-buttons">
+            <button type="button" id="btn-today" class="quick-pick-btn">Today</button>
+            <button type="button" id="btn-tomorrow" class="quick-pick-btn">Tomorrow</button>
+          </div>
+        </div>
+        <div class="time-picker-group">
+          <label><input type="checkbox" id="include-time"> Include time</label>
+          <input type="time" id="due-time" name="dueTime" disabled>
+        </div>
+      </div>
+
       <!-- Tags Multi-Select -->
       <div class="form-group">
         <label for="tags-select">Tags (optional)</label>

@@ -121,7 +121,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
 
 ### Popup UI
 
-- [ ] 1.10 Add assignee dropdown and due date inputs to popup HTML
+- [x] 1.10 Add assignee dropdown and due date inputs to popup HTML
   - **Do**:
     1. Add assignee dropdown after section select:
        ```html
