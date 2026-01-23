@@ -70,7 +70,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
 
 ### Content Scripts - Email Metadata
 
-- [ ] 1.6 Add getSenderDetails and getEmailDate to Gmail content script
+- [x] 1.6 Add getSenderDetails and getEmailDate to Gmail content script
   - **Do**:
     1. Create `EmailSenderInfo` interface: `{ name?: string; email?: string }`
     2. Add `getSenderDetails(): EmailSenderInfo` function that extracts name from `span.gD` textContent and email from `[email]` attribute
