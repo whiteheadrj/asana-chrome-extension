@@ -308,7 +308,7 @@ After POC validated, clean up code structure.
   - _Requirements: NFR-4_
   - _Design: Test Strategy - Unit Tests_
 
-- [ ] 3.2 Add unit tests for getUsers and getCurrentUser
+- [x] 3.2 Add unit tests for getUsers and getCurrentUser
   - **Do**:
     1. Add tests to existing asana-api.test.ts
     2. Test getUsers returns mapped users array

@@ -12,6 +12,8 @@ import {
   getProjects,
   getSections,
   getTags,
+  getUsers,
+  getCurrentUser,
   createTask,
 } from '../asana-api.js';
 import { STORAGE_KEYS, ASANA_API_BASE } from '../../shared/constants.js';
@@ -528,6 +530,104 @@ describe('asana-api module', () => {
         name: 'urgent',
         workspaceGid: 'workspace123',
       });
+    });
+  });
+
+  // ===========================================================================
+  // getUsers
+  // ===========================================================================
+
+  describe('getUsers', () => {
+    it('fetches users for a workspace', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: [
+            { gid: 'user1', name: 'Alice', email: 'alice@example.com' },
+            { gid: 'user2', name: 'Bob', email: 'bob@example.com' },
+          ],
+        })
+      );
+
+      const result = await getUsers('workspace123');
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/workspaces/workspace123/users'),
+        expect.any(Object)
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        gid: 'user1',
+        name: 'Alice',
+        email: 'alice@example.com',
+      });
+      expect(result[1]).toEqual({
+        gid: 'user2',
+        name: 'Bob',
+        email: 'bob@example.com',
+      });
+    });
+
+    it('returns empty array for workspace with no users', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({ data: [] })
+      );
+
+      const result = await getUsers('emptyWorkspace');
+
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    it('requests gid, name, and email opt_fields', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({ data: [] })
+      );
+
+      await getUsers('ws1');
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const url = new URL(call[0]);
+      expect(url.searchParams.get('opt_fields')).toBe('gid,name,email');
+    });
+  });
+
+  // ===========================================================================
+  // getCurrentUser
+  // ===========================================================================
+
+  describe('getCurrentUser', () => {
+    it('fetches the current user from /users/me endpoint', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: 'me123', name: 'Current User', email: 'me@example.com' },
+        })
+      );
+
+      const result = await getCurrentUser();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/users/me'),
+        expect.any(Object)
+      );
+      expect(result).toEqual({
+        gid: 'me123',
+        name: 'Current User',
+        email: 'me@example.com',
+      });
+    });
+
+    it('requests gid, name, and email opt_fields', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: 'me1', name: 'User', email: 'user@test.com' },
+        })
+      );
+
+      await getCurrentUser();
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const url = new URL(call[0]);
+      expect(url.searchParams.get('opt_fields')).toBe('gid,name,email');
     });
   });
 
