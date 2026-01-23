@@ -147,6 +147,49 @@ const state: PopupLocalState = {
 };
 
 // =============================================================================
+// Date Formatting Helpers
+// =============================================================================
+
+/**
+ * Format date for Asana API
+ * Returns due_on (YYYY-MM-DD) for date only, or due_at (ISO string) for date+time
+ *
+ * @param date - Date string in YYYY-MM-DD format
+ * @param time - Optional time string in HH:MM format (local time)
+ * @returns Object with either due_on or due_at field
+ */
+function formatDateForAsana(date: string, time: string | null): { due_on?: string; due_at?: string } {
+  if (!date) {
+    return {};
+  }
+
+  if (time) {
+    // Combine date and time, then convert to UTC ISO string
+    const localDateTime = new Date(`${date}T${time}`);
+    return { due_at: localDateTime.toISOString() };
+  }
+
+  // Date only - use due_on format (YYYY-MM-DD)
+  return { due_on: date };
+}
+
+/**
+ * Format ISO date string as human-readable text for notes
+ *
+ * @param isoDate - Date string (ISO format or YYYY-MM-DD)
+ * @returns Human-readable date string (e.g., "Thursday, January 23, 2026")
+ */
+function formatDateHumanReadable(isoDate: string): string {
+  const dateObj = new Date(isoDate);
+  return dateObj.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+// =============================================================================
 // UI Helpers
 // =============================================================================
 
@@ -1074,15 +1117,7 @@ async function handleSubmitTask(): Promise<void> {
         emailMetadataParts.push(`Email: ${state.senderEmail}`);
       }
       if (state.emailDate) {
-        // Format date as human-readable
-        const dateObj = new Date(state.emailDate);
-        const humanReadableDate = dateObj.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
-        emailMetadataParts.push(`Date received: ${humanReadableDate}`);
+        emailMetadataParts.push(`Date received: ${formatDateHumanReadable(state.emailDate)}`);
       }
       if (state.emailSubject) {
         emailMetadataParts.push(`Subject: ${state.emailSubject}`);
@@ -1137,14 +1172,9 @@ async function handleSubmitTask(): Promise<void> {
 
     // Add due date/time
     if (state.dueDate) {
-      if (state.dueTime && elements.includeTimeCheckbox.checked) {
-        // Use due_at for datetime (ISO format with timezone)
-        const dateTime = new Date(`${state.dueDate}T${state.dueTime}`);
-        payload.due_at = dateTime.toISOString();
-      } else {
-        // Use due_on for date only (YYYY-MM-DD format)
-        payload.due_on = state.dueDate;
-      }
+      const effectiveTime = elements.includeTimeCheckbox.checked ? state.dueTime : null;
+      const dateFields = formatDateForAsana(state.dueDate, effectiveTime);
+      Object.assign(payload, dateFields);
     }
 
     // Send to service worker

@@ -260,7 +260,7 @@ After POC validated, clean up code structure.
   - **Done when**: All commands exit 0
   - **Commit**: `chore(popup): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 2.4 Extract date formatting helpers
+- [x] 2.4 Extract date formatting helpers
   - **Do**:
     1. Create helper function `formatDateForAsana(date: string, time: string | null): { due_on?: string; due_at?: string }`
     2. Create helper `formatDateHumanReadable(isoDate: string): string` for notes
