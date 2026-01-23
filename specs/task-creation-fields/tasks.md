@@ -156,7 +156,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-5, FR-6, FR-6b, AC-2.1, AC-2.3, AC-2.4, AC-2.6_
   - _Design: Popup UI - Assignee, Popup UI - Due Date_
 
-- [ ] 1.11 Add CSS styles for new form elements
+- [x] 1.11 Add CSS styles for new form elements
   - **Do**:
     1. Add `.date-picker-group` flex container styles
     2. Add `.quick-pick-buttons` flex row styles
