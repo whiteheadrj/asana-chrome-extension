@@ -322,7 +322,7 @@ After POC validated, clean up code structure.
   - _Requirements: NFR-4_
   - _Design: Test Strategy - Unit Tests_
 
-- [ ] 3.3 [VERIFY] Quality checkpoint: API tests
+- [x] 3.3 [VERIFY] Quality checkpoint: API tests
   - **Do**: Run full test suite
   - **Verify**: `pnpm lint && pnpm check-types && pnpm test`
   - **Done when**: All commands exit 0
