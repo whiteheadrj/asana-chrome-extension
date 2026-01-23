@@ -207,7 +207,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-15, AC-3.1 through AC-3.6, AC-4.1 through AC-4.4_
   - _Design: Enhanced Notes_
 
-- [ ] 1.14 POC Checkpoint - E2E validation
+- [x] 1.14 POC Checkpoint - E2E validation
   - **Do**:
     1. Build extension: `pnpm build`
     2. Load extension in Chrome via chrome://extensions (developer mode)
