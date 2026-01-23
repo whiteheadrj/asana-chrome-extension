@@ -97,7 +97,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-8, FR-10_
   - _Design: Email Metadata Extraction_
 
-- [ ] 1.8 [VERIFY] Quality checkpoint: content scripts
+- [x] 1.8 [VERIFY] Quality checkpoint: content scripts
   - **Do**: Run lint and type check
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: All commands exit 0
