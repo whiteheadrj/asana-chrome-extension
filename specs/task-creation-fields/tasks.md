@@ -188,7 +188,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-5, FR-6, FR-6b, FR-11, AC-1.1 through AC-1.6, AC-2.1 through AC-2.6_
   - _Design: Popup UI - Assignee, Popup UI - Due Date_
 
-- [ ] 1.13 Enhance notes generation with email metadata and search string
+- [x] 1.13 Enhance notes generation with email metadata and search string
   - **Do**:
     1. Import `buildGmailSearchString`, `buildOutlookSearchString` from `./email-search`
     2. In `handleSubmitTask`, update note building to include:

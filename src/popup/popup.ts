@@ -24,6 +24,7 @@ import { get, set } from '../shared/storage';
 import { generateTaskName } from '../shared/ai';
 import { isOffline } from '../shared/errors';
 import type { MessageErrorCode } from '../shared/messaging';
+import { buildGmailSearchString, buildOutlookSearchString } from './email-search';
 
 // =============================================================================
 // DOM Elements
@@ -990,15 +991,66 @@ async function handleSubmitTask(): Promise<void> {
     // Add optional fields
     const notes = elements.taskNotesTextarea.value.trim();
     const url = elements.taskUrlInput.value.trim();
-    if (notes || url || state.accountEmail) {
-      // Combine notes with URL and email info
-      const noteParts: string[] = [];
-      if (notes) noteParts.push(notes);
-      if (url) noteParts.push(`Source: ${url}`);
-      // Include email address for Gmail tasks (helps identify the account)
-      if (state.accountEmail) {
-        noteParts.push(`Email account: ${state.accountEmail}`);
+    const noteParts: string[] = [];
+
+    if (notes) noteParts.push(notes);
+    if (url) noteParts.push(`Source: ${url}`);
+
+    // Add email metadata when content type is email
+    if (state.contentType === 'email') {
+      const emailMetadataParts: string[] = [];
+
+      if (state.senderName) {
+        emailMetadataParts.push(`From: ${state.senderName}`);
       }
+      if (state.senderEmail) {
+        emailMetadataParts.push(`Email: ${state.senderEmail}`);
+      }
+      if (state.emailDate) {
+        // Format date as human-readable
+        const dateObj = new Date(state.emailDate);
+        const humanReadableDate = dateObj.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+        emailMetadataParts.push(`Date received: ${humanReadableDate}`);
+      }
+      if (state.emailSubject) {
+        emailMetadataParts.push(`Subject: ${state.emailSubject}`);
+      }
+      // Account email is only available for Gmail
+      if (state.accountEmail) {
+        emailMetadataParts.push(`Account: ${state.accountEmail}`);
+      }
+
+      if (emailMetadataParts.length > 0) {
+        noteParts.push(emailMetadataParts.join('\n'));
+      }
+
+      // Build search string based on email client
+      const searchParams = {
+        senderEmail: state.senderEmail,
+        subject: state.emailSubject,
+        date: state.emailDate,
+      };
+
+      const isGmail = state.pageUrl.includes('mail.google.com');
+      if (isGmail) {
+        const searchString = buildGmailSearchString(searchParams);
+        if (searchString) {
+          noteParts.push(`Search in Gmail:\n${searchString}`);
+        }
+      } else {
+        const searchString = buildOutlookSearchString(searchParams);
+        if (searchString) {
+          noteParts.push(`Search in Outlook:\n${searchString}`);
+        }
+      }
+    }
+
+    if (noteParts.length > 0) {
       payload.notes = noteParts.join('\n\n');
     }
 
