@@ -328,7 +328,7 @@ After POC validated, clean up code structure.
   - **Done when**: All commands exit 0
   - **Commit**: `chore(test): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 3.4 Add unit tests for Gmail getSenderDetails and getEmailDate
+- [x] 3.4 Add unit tests for Gmail getSenderDetails and getEmailDate
   - **Do**:
     1. Add tests to existing gmail-content.test.ts
     2. Test getSenderDetails extracts name and email separately

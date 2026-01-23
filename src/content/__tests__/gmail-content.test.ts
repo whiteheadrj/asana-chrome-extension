@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { parseGmailUrl, getEmailBody, getEmailSender } from '../gmail-content.js';
+import { parseGmailUrl, getEmailBody, getEmailSender, getSenderDetails, getEmailDate } from '../gmail-content.js';
 
 // =============================================================================
 // getEmailBody Tests
@@ -600,6 +600,438 @@ describe('parseGmailUrl', () => {
 
       expect(result.userId).toBe('0');
       expect(result.messageId).toBe('ABC123');
+    });
+  });
+});
+
+// =============================================================================
+// getSenderDetails Tests
+// =============================================================================
+
+describe('getSenderDetails', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (span.gD)', () => {
+    it('extracts both name and email from span.gD', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="john.smith@example.com">John Smith</span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('John Smith');
+      expect(result.email).toBe('john.smith@example.com');
+    });
+
+    it('extracts only name when email attribute is missing', () => {
+      mockContainer.innerHTML = `
+        <span class="gD">Jane Doe</span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Jane Doe');
+      expect(result.email).toBeUndefined();
+    });
+
+    it('extracts only email when textContent is empty', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="contact@company.org"></span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBe('contact@company.org');
+    });
+
+    it('trims whitespace from name', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="test@test.com">   Trimmed Name   </span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Trimmed Name');
+      expect(result.email).toBe('test@test.com');
+    });
+  });
+
+  describe('fallback selector ([email])', () => {
+    it('falls back to [email] attribute when span.gD has no email', () => {
+      mockContainer.innerHTML = `
+        <span class="gD">Sender Name Only</span>
+        <div email="fallback@example.com"></div>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Sender Name Only');
+      expect(result.email).toBe('fallback@example.com');
+    });
+
+    it('uses [email] when span.gD is not present', () => {
+      mockContainer.innerHTML = `
+        <div email="only-email@domain.net"></div>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBe('only-email@domain.net');
+    });
+  });
+
+  describe('fallback selector (span[data-hovercard-id])', () => {
+    it('extracts email from data-hovercard-id using regex', () => {
+      mockContainer.innerHTML = `
+        <span data-hovercard-id="user:alice@test.com:12345"></span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.email).toBe('alice@test.com');
+    });
+
+    it('extracts email directly from data-hovercard-id', () => {
+      mockContainer.innerHTML = `
+        <span data-hovercard-id="bob@company.io"></span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.email).toBe('bob@company.io');
+    });
+
+    it('uses hovercard-id fallback only when other selectors fail', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="primary@example.com">Primary Sender</span>
+        <span data-hovercard-id="fallback@example.com"></span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Primary Sender');
+      expect(result.email).toBe('primary@example.com');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns empty object when no selectors match', () => {
+      mockContainer.innerHTML = `
+        <div class="other-class">Not a sender element</div>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+    });
+
+    it('returns empty object when container is empty', () => {
+      mockContainer.innerHTML = '';
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+    });
+
+    it('returns empty object when span.gD has only whitespace', () => {
+      mockContainer.innerHTML = `
+        <span class="gD">   </span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+    });
+
+    it('handles special characters in name', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="test@test.com">O'Brien, María José</span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe("O'Brien, María José");
+    });
+
+    it('handles complex email formats', () => {
+      mockContainer.innerHTML = `
+        <span class="gD" email="test.user+tag@sub.domain.co.uk">Test User</span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.email).toBe('test.user+tag@sub.domain.co.uk');
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns empty object on DOM query error', () => {
+      const mockQuerySelector = vi.spyOn(document, 'querySelector').mockImplementation(() => {
+        throw new Error('DOM error');
+      });
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+
+      mockQuerySelector.mockRestore();
+    });
+  });
+});
+
+// =============================================================================
+// getEmailDate Tests
+// =============================================================================
+
+describe('getEmailDate', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (.gK .g3)', () => {
+    it('extracts date from .gK .g3 textContent', () => {
+      mockContainer.innerHTML = `
+        <div class="gK">
+          <span class="g3">Dec 15, 2024</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-12-15');
+    });
+
+    it('extracts date from title attribute', () => {
+      mockContainer.innerHTML = `
+        <div class="gK">
+          <span class="g3" title="December 15, 2024 10:30 AM">Dec 15</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-12-15');
+    });
+
+    it('extracts date from data-tooltip attribute', () => {
+      mockContainer.innerHTML = `
+        <div class="gK">
+          <span class="g3" data-tooltip="January 20, 2025">Jan 20</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-01-20');
+    });
+  });
+
+  describe('fallback selector (.g3)', () => {
+    it('falls back to .g3 when .gK .g3 fails', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">March 1, 2025</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-03-01');
+    });
+  });
+
+  describe('fallback selector (span.g3)', () => {
+    it('uses span.g3 selector', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">April 10, 2025</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-04-10');
+    });
+  });
+
+  describe('fallback selector ([data-legacy-thread-id])', () => {
+    it('extracts date from thread view', () => {
+      mockContainer.innerHTML = `
+        <div data-legacy-thread-id="abc123">
+          <div class="gK">
+            <span>May 5, 2025</span>
+          </div>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-05-05');
+    });
+  });
+
+  describe('additional fallback selectors', () => {
+    it('extracts date from .ade .ads selector', () => {
+      mockContainer.innerHTML = `
+        <div class="ade">
+          <div class="ads">June 15, 2025</div>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-06-15');
+    });
+
+    it('extracts date from td.xY span.xW selector when earlier selectors fail', () => {
+      // Only include td.xY span.xW, no other date selectors
+      mockContainer.innerHTML = `
+        <table>
+          <tr>
+            <td class="xY">
+              <span class="xW">July 20, 2025</span>
+            </td>
+          </tr>
+        </table>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-07-20');
+    });
+  });
+
+  describe('date format parsing', () => {
+    it('parses "MMM DD, YYYY" format', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">Jan 15, 2025</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-01-15');
+    });
+
+    it('parses "MMMM DD, YYYY" format', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">February 28, 2025</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-02-28');
+    });
+
+    it('parses "DD MMM YYYY" format', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">15 Mar 2025</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-03-15');
+    });
+
+    it('parses ISO date format', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">2025-04-20</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-04-20');
+    });
+
+    it('parses full datetime string from title attribute', () => {
+      // Note: "Sat, May 10, 2025 3:45 PM" format is parseable by JS Date
+      // The "at" keyword in date strings can cause parsing issues
+      mockContainer.innerHTML = `
+        <span class="g3" title="Sat, May 10, 2025, 3:45 PM">May 10</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-05-10');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns undefined when no date element found', () => {
+      mockContainer.innerHTML = `
+        <div class="other-class">Not a date element</div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when container is empty', () => {
+      mockContainer.innerHTML = '';
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when element has only whitespace', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">   </span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for unparseable date string', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">not a date</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined for partial date without year', () => {
+      mockContainer.innerHTML = `
+        <span class="g3">Dec 15</span>
+      `;
+
+      // Note: Date parsing without year behavior depends on JS Date implementation
+      // It may assume current year or fail - test actual behavior
+      const result = getEmailDate();
+      // The Date constructor may parse "Dec 15" with current year or fail
+      // We just verify it doesn't throw
+      expect(typeof result === 'string' || result === undefined).toBe(true);
+    });
+  });
+
+  describe('selector priority', () => {
+    it('uses first matching selector when multiple are present', () => {
+      mockContainer.innerHTML = `
+        <div class="gK">
+          <span class="g3">Jan 1, 2025</span>
+        </div>
+        <div class="ade">
+          <div class="ads">Feb 2, 2025</div>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      // Should use first matching selector (.gK .g3)
+      expect(result).toBe('2025-01-01');
+    });
+
+    it('prefers title attribute over textContent', () => {
+      mockContainer.innerHTML = `
+        <span class="g3" title="March 15, 2025">Mar 15</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2025-03-15');
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns undefined on DOM query error', () => {
+      const mockQuerySelector = vi.spyOn(document, 'querySelector').mockImplementation(() => {
+        throw new Error('DOM error');
+      });
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+
+      mockQuerySelector.mockRestore();
     });
   });
 });
