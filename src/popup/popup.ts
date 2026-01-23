@@ -552,7 +552,7 @@ async function loadWorkspaces(): Promise<void> {
           // Load projects and users in parallel
           await Promise.all([
             loadProjects(lastUsed.workspaceGid, lastUsed),
-            loadUsers(lastUsed.workspaceGid, lastUsed),
+            loadAndDefaultAssignee(lastUsed.workspaceGid, lastUsed),
           ]);
         } else {
           showSection('form');
@@ -683,7 +683,32 @@ async function loadTags(workspaceGid: string): Promise<void> {
   }
 }
 
-async function loadUsers(workspaceGid: string, lastUsed?: LastUsedSelections): Promise<void> {
+/**
+ * Fetch current user GID from Asana API
+ * Returns null on failure (graceful degradation to unassigned)
+ */
+async function fetchCurrentUser(): Promise<string | null> {
+  try {
+    // Note: GET_CURRENT_USER handler may not be implemented yet
+    // This will fail gracefully and fall back to unassigned
+    // Using type assertion since GET_CURRENT_USER is not yet in ExtensionMessage union
+    const response = await chrome.runtime.sendMessage({ type: 'GET_CURRENT_USER' }) as MessageResult<AsanaUser>;
+
+    if (response?.success && response.data?.gid) {
+      return response.data.gid;
+    }
+    return null;
+  } catch (error) {
+    console.debug('Failed to fetch current user, falling back to unassigned:', error);
+    return null;
+  }
+}
+
+/**
+ * Load users and set default assignee
+ * Priority: lastUsed.assigneeGid > currentUserGid > unassigned
+ */
+async function loadAndDefaultAssignee(workspaceGid: string, lastUsed?: LastUsedSelections): Promise<void> {
   resetAssigneeDropdown();
 
   if (!workspaceGid) return;
@@ -691,29 +716,49 @@ async function loadUsers(workspaceGid: string, lastUsed?: LastUsedSelections): P
   elements.assigneeSelect.disabled = true;
 
   try {
-    const response = await sendMessage<AsanaUser[]>({
-      type: 'GET_USERS',
-      workspaceGid,
-    });
+    // Load users and current user in parallel
+    const [usersResponse, currentUserGid] = await Promise.all([
+      sendMessage<AsanaUser[]>({
+        type: 'GET_USERS',
+        workspaceGid,
+      }),
+      fetchCurrentUser(),
+    ]);
 
-    if (response.success && response.data) {
-      state.users = response.data;
+    // Store current user GID for display purposes (marking "(me)" in dropdown)
+    state.currentUserGid = currentUserGid;
+
+    if (usersResponse.success && usersResponse.data) {
+      state.users = usersResponse.data;
       populateAssigneeDropdown(state.users, state.currentUserGid);
 
-      // Restore last-used assignee or default to current user
+      // Determine default assignee (priority: lastUsed > currentUser > unassigned)
+      let defaultAssigneeGid: string | null = null;
+
+      // Priority 1: Check lastUsed.assigneeGid
       if (lastUsed?.assigneeGid) {
         const savedAssignee = state.users.find(u => u.gid === lastUsed.assigneeGid);
         if (savedAssignee) {
-          elements.assigneeSelect.value = lastUsed.assigneeGid;
-          state.selectedAssigneeGid = lastUsed.assigneeGid;
+          defaultAssigneeGid = lastUsed.assigneeGid;
         }
-      } else if (state.currentUserGid) {
-        // Default to current user
-        elements.assigneeSelect.value = state.currentUserGid;
-        state.selectedAssigneeGid = state.currentUserGid;
+      }
+
+      // Priority 2: Fall back to current user if no lastUsed
+      if (!defaultAssigneeGid && state.currentUserGid) {
+        const currentUserInList = state.users.find(u => u.gid === state.currentUserGid);
+        if (currentUserInList) {
+          defaultAssigneeGid = state.currentUserGid;
+        }
+      }
+
+      // Apply default selection (or leave as unassigned if null)
+      if (defaultAssigneeGid) {
+        elements.assigneeSelect.value = defaultAssigneeGid;
+        state.selectedAssigneeGid = defaultAssigneeGid;
       }
     } else {
-      console.warn('Failed to load users:', response.error);
+      console.warn('Failed to load users:', usersResponse.error);
+      // Dropdown stays disabled with "Unassigned" option only
     }
   } catch (error) {
     console.error('Load users error:', error);
@@ -721,7 +766,6 @@ async function loadUsers(workspaceGid: string, lastUsed?: LastUsedSelections): P
     elements.assigneeSelect.disabled = false;
   }
 }
-
 
 // =============================================================================
 // Dropdown Population
@@ -1139,7 +1183,7 @@ function setupEventListeners(): void {
     // Load projects and users in parallel
     await Promise.all([
       loadProjects(workspaceGid),
-      loadUsers(workspaceGid),
+      loadAndDefaultAssignee(workspaceGid),
     ]);
     updateSubmitButtonState();
   });

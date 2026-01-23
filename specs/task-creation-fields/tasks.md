@@ -231,7 +231,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
 
 After POC validated, clean up code structure.
 
-- [ ] 2.1 Extract assignee loading into dedicated function
+- [x] 2.1 Extract assignee loading into dedicated function
   - **Do**:
     1. Create `loadAndDefaultAssignee(workspaceGid)` function
     2. Handle getCurrentUser failure gracefully (fall back to unassigned)
