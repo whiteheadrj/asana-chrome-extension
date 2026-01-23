@@ -105,7 +105,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
 
 ### Email Search Strings
 
-- [ ] 1.9 Create email-search.ts with search string builders
+- [x] 1.9 Create email-search.ts with search string builders
   - **Do**:
     1. Create new file with `EmailSearchParams` interface: `{ senderEmail?: string; subject?: string; date?: string }`
     2. Implement `buildGmailSearchString(params)`: format as `from:email subject:"text" after:YYYY/MM/DD before:YYYY/MM/DD`
