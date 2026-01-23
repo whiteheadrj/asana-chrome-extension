@@ -425,7 +425,7 @@ EOF
   - **If CI fails**: Fix issues locally, push, re-verify
   - **Commit**: None (PR is the deliverable)
 
-- [ ] 4.3 [VERIFY] AC checklist verification
+- [x] 4.3 [VERIFY] AC checklist verification
   - **Do**: Programmatically verify each acceptance criterion:
     1. AC-1.1: `grep -q 'getUsers' src/background/asana-api.ts`
     2. AC-1.2: Check popup.ts defaults assignee to currentUserGid
