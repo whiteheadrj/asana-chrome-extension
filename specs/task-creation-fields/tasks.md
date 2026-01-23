@@ -54,7 +54,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - **Done when**: All commands exit 0
   - **Commit**: `chore(api): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 1.5 Add GET_USERS handler to service worker
+- [x] 1.5 Add GET_USERS handler to service worker
   - **Do**:
     1. Import `getUsers` from `./asana-api`
     2. Import `AsanaUser` type

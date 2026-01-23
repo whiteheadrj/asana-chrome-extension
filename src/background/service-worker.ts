@@ -10,6 +10,7 @@ import type {
   AsanaProject,
   AsanaSection,
   AsanaTag,
+  AsanaUser,
 } from '../shared/types';
 import {
   createMessageRouter,
@@ -20,7 +21,7 @@ import {
   type MessageErrorCode,
 } from '../shared/messaging';
 import { isAuthenticated, startAuthFlow, logout, handleOAuthCallback } from './oauth';
-import { getWorkspaces, getProjects, getSections, getTags, createTask } from './asana-api';
+import { getWorkspaces, getProjects, getSections, getTags, getUsers, createTask } from './asana-api';
 import { getOrFetch, clearCache } from './cache';
 import { setupContextMenu } from './context-menu';
 import {
@@ -38,6 +39,7 @@ const CACHE_KEYS = {
   PROJECTS: (workspaceGid: string) => `cache_projects_${workspaceGid}`,
   SECTIONS: (projectGid: string) => `cache_sections_${projectGid}`,
   TAGS: (workspaceGid: string) => `cache_tags_${workspaceGid}`,
+  USERS: (workspaceGid: string) => `cache_users_${workspaceGid}`,
 };
 
 // =============================================================================
@@ -222,6 +224,24 @@ async function handleGetTags(
 }
 
 /**
+ * Handle GET_USERS message
+ * Returns users in a workspace (from cache or API)
+ */
+async function handleGetUsers(
+  message: Extract<ExtensionMessage, { type: 'GET_USERS' }>
+): Promise<MessageResponse<AsanaUser[]>> {
+  try {
+    const users = await getOrFetch<AsanaUser[]>(
+      CACHE_KEYS.USERS(message.workspaceGid),
+      () => getUsers(message.workspaceGid)
+    );
+    return createSuccessResponse(users);
+  } catch (error) {
+    return handleError(error);
+  }
+}
+
+/**
  * Handle CREATE_TASK message
  * Creates a new task in Asana
  */
@@ -281,6 +301,7 @@ const messageHandlers: MessageHandlerRegistry = {
   GET_PROJECTS: async (message) => handleGetProjects(message as Extract<ExtensionMessage, { type: 'GET_PROJECTS' }>),
   GET_SECTIONS: async (message) => handleGetSections(message as Extract<ExtensionMessage, { type: 'GET_SECTIONS' }>),
   GET_TAGS: async (message) => handleGetTags(message as Extract<ExtensionMessage, { type: 'GET_TAGS' }>),
+  GET_USERS: async (message) => handleGetUsers(message as Extract<ExtensionMessage, { type: 'GET_USERS' }>),
 
   // Task creation
   CREATE_TASK: async (message) => handleCreateTask(message as Extract<ExtensionMessage, { type: 'CREATE_TASK' }>),
