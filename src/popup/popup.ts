@@ -706,7 +706,11 @@ async function fetchCurrentUser(): Promise<string | null> {
 
 /**
  * Load users and set default assignee
- * Priority: lastUsed.assigneeGid > currentUserGid > unassigned
+ * Priority: lastUsed.assigneeGid > currentUserGid > firstUser > unassigned
+ *
+ * Error handling:
+ * - getUsers failure: disable dropdown, show warning, allow unassigned
+ * - getCurrentUser failure: fall back to first user or unassigned
  */
 async function loadAndDefaultAssignee(workspaceGid: string, lastUsed?: LastUsedSelections): Promise<void> {
   resetAssigneeDropdown();
@@ -726,13 +730,14 @@ async function loadAndDefaultAssignee(workspaceGid: string, lastUsed?: LastUsedS
     ]);
 
     // Store current user GID for display purposes (marking "(me)" in dropdown)
+    // currentUserGid may be null if getCurrentUser failed - this is OK
     state.currentUserGid = currentUserGid;
 
     if (usersResponse.success && usersResponse.data) {
       state.users = usersResponse.data;
       populateAssigneeDropdown(state.users, state.currentUserGid);
 
-      // Determine default assignee (priority: lastUsed > currentUser > unassigned)
+      // Determine default assignee (priority: lastUsed > currentUser > firstUser > unassigned)
       let defaultAssigneeGid: string | null = null;
 
       // Priority 1: Check lastUsed.assigneeGid
@@ -751,19 +756,37 @@ async function loadAndDefaultAssignee(workspaceGid: string, lastUsed?: LastUsedS
         }
       }
 
+      // Priority 3: Fall back to first user if getCurrentUser failed
+      if (!defaultAssigneeGid && state.users.length > 0) {
+        defaultAssigneeGid = state.users[0].gid;
+      }
+
       // Apply default selection (or leave as unassigned if null)
       if (defaultAssigneeGid) {
         elements.assigneeSelect.value = defaultAssigneeGid;
         state.selectedAssigneeGid = defaultAssigneeGid;
       }
+
+      // Enable dropdown for normal usage
+      elements.assigneeSelect.disabled = false;
     } else {
+      // getUsers failed - disable dropdown but allow form submission with unassigned
       console.warn('Failed to load users:', usersResponse.error);
-      // Dropdown stays disabled with "Unassigned" option only
+      const errorMessage = getErrorMessage(usersResponse.error, usersResponse.errorCode, 'load assignees');
+
+      // Show non-blocking warning (don't use showError which is more prominent)
+      // Keep dropdown disabled with only "Unassigned" option
+      elements.assigneeSelect.disabled = true;
+      elements.assigneeSelect.title = errorMessage;
+
+      // Log warning but allow task creation to continue (unassigned is valid)
+      console.warn('Assignee dropdown unavailable:', errorMessage);
     }
   } catch (error) {
+    // Unexpected error - disable dropdown, allow unassigned
     console.error('Load users error:', error);
-  } finally {
-    elements.assigneeSelect.disabled = false;
+    elements.assigneeSelect.disabled = true;
+    elements.assigneeSelect.title = 'Unable to load assignees. Task will be created unassigned.';
   }
 }
 

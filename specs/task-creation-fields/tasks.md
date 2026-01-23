@@ -243,7 +243,7 @@ After POC validated, clean up code structure.
   - **Commit**: `refactor(popup): extract assignee loading logic`
   - _Design: Popup State Extension_
 
-- [ ] 2.2 Add error handling for users API
+- [x] 2.2 Add error handling for users API
   - **Do**:
     1. Handle getUsers failure: disable dropdown, show warning, allow unassigned
     2. Handle getCurrentUser failure: fall back to first user or unassigned
