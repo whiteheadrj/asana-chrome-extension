@@ -447,6 +447,7 @@ export function getEmailDate(): string | undefined {
           }
         }
       }
+      console.debug('[Asana Extension] Outlook date selector failed: time[datetime] in email message container');
 
       // Look for span with date text (various patterns)
       const dateSpans = container.querySelectorAll('span');
@@ -458,7 +459,7 @@ export function getEmailDate(): string | undefined {
           if (isLikelyDateString(text)) {
             const parsed = parseDateString(text);
             if (parsed) {
-              console.debug('[Asana Extension] Outlook date extracted from span text');
+              console.debug('[Asana Extension] Outlook date extracted from span text in email container');
               return parsed;
             }
           }
@@ -466,35 +467,85 @@ export function getEmailDate(): string | undefined {
       }
     }
 
-    // Method 2: Look for date in reading pane header
+    // Method 2: Look for date in reading pane header using specific data attributes
     const dateSelectors = [
       '[data-app-section="DateTimeLine"]',
       '[data-app-section="ReceivedTimeLine"]',
       'span[id*="DateTimeLine"]',
+      'span[id*="ReceivedDateTime"]',
+      'div[class*="MessageHeader"] time',
+      'span[class*="dateTimeLine"]',
     ];
 
     for (const selector of dateSelectors) {
       const element = document.querySelector(selector);
-      if (element && element.textContent) {
-        const parsed = parseDateString(element.textContent.trim());
-        if (parsed) {
-          console.debug(`[Asana Extension] Outlook date extracted using selector: ${selector}`);
-          return parsed;
+      if (element) {
+        // Try datetime attribute first (for time elements)
+        const datetimeAttr = element.getAttribute('datetime');
+        if (datetimeAttr) {
+          const parsed = parseDateString(datetimeAttr);
+          if (parsed) {
+            console.debug(`[Asana Extension] Outlook date extracted using selector: ${selector} (datetime attr)`);
+            return parsed;
+          }
+        }
+
+        // Fall back to textContent
+        if (element.textContent) {
+          const parsed = parseDateString(element.textContent.trim());
+          if (parsed) {
+            console.debug(`[Asana Extension] Outlook date extracted using selector: ${selector} (textContent)`);
+            return parsed;
+          }
         }
       }
+      console.debug(`[Asana Extension] Outlook date selector failed: ${selector}`);
     }
 
     // Method 3: Look for aria-label containing date info
-    const dateElements = document.querySelectorAll('[aria-label*="sent"], [aria-label*="received"], [aria-label*="date"]');
-    for (const element of dateElements) {
-      const ariaLabel = element.getAttribute('aria-label');
-      if (ariaLabel) {
-        const parsed = parseDateString(ariaLabel);
-        if (parsed) {
-          console.debug('[Asana Extension] Outlook date extracted from aria-label');
-          return parsed;
+    const ariaLabelSelectors = [
+      '[aria-label*="sent"]',
+      '[aria-label*="received"]',
+      '[aria-label*="date"]',
+      '[aria-label*="Sent:"]',
+      '[aria-label*="Received:"]',
+    ];
+
+    for (const selector of ariaLabelSelectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        const ariaLabel = element.getAttribute('aria-label');
+        if (ariaLabel) {
+          const parsed = parseDateString(ariaLabel);
+          if (parsed) {
+            console.debug(`[Asana Extension] Outlook date extracted from aria-label: ${selector}`);
+            return parsed;
+          }
         }
       }
+      console.debug(`[Asana Extension] Outlook date aria-label selector failed: ${selector}`);
+    }
+
+    // Method 4: Look for title attributes that may contain date tooltips
+    const titleSelectors = [
+      '[title*="Sent:"]',
+      '[title*="Received:"]',
+      'span[title]',
+    ];
+
+    for (const selector of titleSelectors) {
+      const elements = document.querySelectorAll(selector);
+      for (const element of elements) {
+        const titleAttr = element.getAttribute('title');
+        if (titleAttr && isLikelyDateString(titleAttr)) {
+          const parsed = parseDateString(titleAttr);
+          if (parsed) {
+            console.debug(`[Asana Extension] Outlook date extracted from title attr: ${selector}`);
+            return parsed;
+          }
+        }
+      }
+      console.debug(`[Asana Extension] Outlook date title selector failed: ${selector}`);
     }
 
     console.debug('[Asana Extension] Could not extract email date from Outlook DOM - all selectors failed');

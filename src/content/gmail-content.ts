@@ -381,11 +381,16 @@ export function getSenderDetails(): EmailSenderInfo {
 export function getEmailDate(): string | undefined {
   try {
     // Selectors for email date in Gmail, in order of preference
+    // These cover various Gmail UI versions and layouts
     const selectors = [
-      '.gK .g3',           // Standard date element in email header
-      '.g3',               // Date element fallback
-      'span.g3',           // More specific date span
-      '[data-legacy-thread-id] .gK span', // Thread view date
+      '.gK .g3',                           // Standard date element in email header (classic)
+      '.g3',                               // Date element fallback
+      'span.g3',                           // More specific date span
+      '[data-legacy-thread-id] .gK span',  // Thread view date
+      '.ade .ads',                         // Expanded email header date
+      'td.xY span.xW',                     // List view date cell
+      '.ii.gt .gK span',                   // Message content area date
+      '[data-tooltip][data-message-id]',   // Date tooltip on message
     ];
 
     for (const selector of selectors) {
@@ -396,7 +401,17 @@ export function getEmailDate(): string | undefined {
         if (titleAttr) {
           const parsed = parseDateString(titleAttr);
           if (parsed) {
-            console.debug(`[Asana Extension] Gmail date extracted using selector: ${selector} (title)`);
+            console.debug(`[Asana Extension] Gmail date extracted using selector: ${selector} (title attr)`);
+            return parsed;
+          }
+        }
+
+        // Try data-tooltip attribute (some Gmail versions use this)
+        const tooltipAttr = element.getAttribute('data-tooltip');
+        if (tooltipAttr) {
+          const parsed = parseDateString(tooltipAttr);
+          if (parsed) {
+            console.debug(`[Asana Extension] Gmail date extracted using selector: ${selector} (data-tooltip)`);
             return parsed;
           }
         }
@@ -410,6 +425,7 @@ export function getEmailDate(): string | undefined {
           }
         }
       }
+      console.debug(`[Asana Extension] Gmail date selector failed: ${selector}`);
     }
 
     console.debug('[Asana Extension] Could not extract email date from Gmail DOM - all selectors failed');

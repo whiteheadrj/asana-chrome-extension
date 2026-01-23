@@ -271,7 +271,7 @@ After POC validated, clean up code structure.
   - **Commit**: `refactor(popup): extract date formatting helpers`
   - _Design: Technical Decisions - Time zone handling_
 
-- [ ] 2.5 Add multiple selector fallbacks for email date extraction
+- [x] 2.5 Add multiple selector fallbacks for email date extraction
   - **Do**:
     1. Gmail: Add 3-4 fallback selectors for date element
     2. Outlook: Add 3-4 fallback selectors for date element
