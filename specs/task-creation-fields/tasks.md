@@ -48,7 +48,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-3, FR-4, FR-4b_
   - _Design: Task Creation with Assignee/Due Date_
 
-- [ ] 1.4 [VERIFY] Quality checkpoint: types and API
+- [x] 1.4 [VERIFY] Quality checkpoint: types and API
   - **Do**: Run lint and type check
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: All commands exit 0
