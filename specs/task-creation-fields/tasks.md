@@ -84,7 +84,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-7, FR-9_
   - _Design: Email Metadata Extraction_
 
-- [ ] 1.7 Add getSenderDetails and getEmailDate to Outlook content script
+- [x] 1.7 Add getSenderDetails and getEmailDate to Outlook content script
   - **Do**:
     1. Add `getSenderDetails(): EmailSenderInfo` function that parses "Name<email>" format from existing `getSenderInfo()` logic
     2. Add `getEmailDate(): string | undefined` function - look for date in email header DOM
