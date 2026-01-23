@@ -356,6 +356,17 @@ export async function createTask(payload: CreateTaskPayload): Promise<AsanaTask>
     requestBody.tags = payload.tagGids;
   }
 
+  if (payload.assignee) {
+    requestBody.assignee = payload.assignee;
+  }
+
+  // due_at and due_on are mutually exclusive; due_at takes precedence
+  if (payload.due_at) {
+    requestBody.due_at = payload.due_at;
+  } else if (payload.due_on) {
+    requestBody.due_on = payload.due_on;
+  }
+
   const data = await asanaFetch<{ gid: string; name: string; permalink_url: string }>(
     '/tasks',
     {

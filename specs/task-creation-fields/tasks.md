@@ -36,7 +36,7 @@ Focus: Validate assignee/due date fields work E2E. Skip tests, accept hardcoded 
   - _Requirements: FR-1, FR-11b_
   - _Design: Users API Function_
 
-- [ ] 1.3 Extend createTask to include assignee and due date fields
+- [x] 1.3 Extend createTask to include assignee and due date fields
   - **Do**:
     1. In `createTask()`, add `assignee` to `requestBody` if `payload.assignee` is set
     2. Add `due_on` to `requestBody` if `payload.due_on` is set
