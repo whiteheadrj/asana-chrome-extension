@@ -1337,6 +1337,18 @@ function setupEventListeners(): void {
     }
   });
 
+  // History item click (event delegation)
+  elements.historyContainer.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const historyItem = target.closest('.history-item') as HTMLElement;
+    if (historyItem) {
+      const url = historyItem.dataset.url;
+      if (url) {
+        chrome.tabs.create({ url });
+      }
+    }
+  });
+
   // Assignee change
   elements.assigneeSelect.addEventListener('change', () => {
     state.selectedAssigneeGid = elements.assigneeSelect.value || null;

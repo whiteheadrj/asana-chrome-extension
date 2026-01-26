@@ -154,7 +154,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-3, AC-4.1, AC-4.2_
   - _Design: Data Flow_
 
-- [ ] 1.13 Add history item click handler
+- [x] 1.13 Add history item click handler
   - **Do**:
     1. In popup.ts, add click listener to historyContainer (event delegation)
     2. Check if click target is within .history-item
