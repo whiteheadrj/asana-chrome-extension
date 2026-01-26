@@ -20,7 +20,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-4, AC-4.2_
   - _Design: Data Model_
 
-- [ ] 1.2 Add TASK_HISTORY storage key
+- [x] 1.2 Add TASK_HISTORY storage key
   - **Do**: Add `TASK_HISTORY = 'task_history'` to STORAGE_KEYS enum
   - **Files**: `/Users/rjwhitehead/asana-plugin/src/shared/constants.ts`
   - **Done when**: TASK_HISTORY enum member exists
