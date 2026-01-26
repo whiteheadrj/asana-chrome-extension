@@ -80,6 +80,13 @@ export interface AsanaTask {
   permalink_url: string;
 }
 
+export interface TaskHistoryEntry {
+  gid: string;
+  name: string;
+  permalink_url: string;
+  createdAt: number;
+}
+
 // =============================================================================
 // OAuth Types
 // =============================================================================
