@@ -270,7 +270,7 @@ After POC validated, clean up code structure.
   - **Done when**: CI pipeline passes
   - **Commit**: None (PR already created)
 
-- [ ] 4.3 [VERIFY] AC checklist
+- [x] 4.3 [VERIFY] AC checklist
   - **Do**: Programmatically verify each acceptance criteria
   - **Verify**:
     - AC-1.1: `grep -q 'tab-button.*Create Task' dist/popup/popup.html && grep -q 'tab-button.*History' dist/popup/popup.html`
