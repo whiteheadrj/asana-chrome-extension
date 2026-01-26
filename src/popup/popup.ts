@@ -28,6 +28,17 @@ import { buildGmailSearchString, buildOutlookSearchString } from './email-search
 import { loadHistory, renderHistoryList, saveToHistory } from './history';
 
 // =============================================================================
+// Tab Constants
+// =============================================================================
+
+type TabName = 'create' | 'history';
+
+const TAB_IDS = {
+  create: 'panel-create',
+  history: 'panel-history',
+} as const;
+
+// =============================================================================
 // DOM Elements
 // =============================================================================
 
@@ -121,7 +132,7 @@ interface PopupLocalState {
   // Warnings
   warnings: Warning[];
   // Tab state
-  activeTab: 'create' | 'history';
+  activeTab: TabName;
   historyLoaded: boolean;
 }
 
@@ -217,21 +228,23 @@ function showSection(section: 'auth' | 'loading' | 'form' | 'success'): void {
 /**
  * Switch between tabs (Create Task / History)
  */
-async function switchTab(tab: 'create' | 'history'): Promise<void> {
+async function switchTab(tab: TabName): Promise<void> {
   if (state.activeTab === tab) return;
 
   state.activeTab = tab;
 
   // Toggle active class on tab buttons
   elements.tabButtons.forEach(button => {
-    const buttonTab = button.dataset.tab;
+    const buttonTab = button.dataset.tab as TabName;
     button.classList.toggle('active', buttonTab === tab);
     button.setAttribute('aria-selected', buttonTab === tab ? 'true' : 'false');
   });
 
-  // Toggle hidden class on panels
-  elements.panelCreate.classList.toggle('hidden', tab !== 'create');
-  elements.panelHistory.classList.toggle('hidden', tab !== 'history');
+  // Toggle hidden class on panels using constants
+  const createPanel = document.getElementById(TAB_IDS.create);
+  const historyPanel = document.getElementById(TAB_IDS.history);
+  createPanel?.classList.toggle('hidden', tab !== 'create');
+  historyPanel?.classList.toggle('hidden', tab !== 'history');
 
   // Lazy load history on first switch to History tab
   if (tab === 'history' && !state.historyLoaded) {
@@ -1284,7 +1297,7 @@ function setupEventListeners(): void {
     const target = e.target as HTMLElement;
     const tabButton = target.closest('.tab-button') as HTMLElement;
     if (tabButton) {
-      const tab = tabButton.dataset.tab as 'create' | 'history';
+      const tab = tabButton.dataset.tab as TabName;
       if (tab) {
         switchTab(tab);
       }

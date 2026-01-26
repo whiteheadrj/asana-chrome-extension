@@ -184,7 +184,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
 
 After POC validated, clean up code structure.
 
-- [ ] 2.1 Extract tab constants and improve type safety
+- [x] 2.1 Extract tab constants and improve type safety
   - **Do**:
     1. Add TabName type: `'create' | 'history'`
     2. Add TAB_IDS constant object with panel IDs
