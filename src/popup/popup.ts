@@ -246,6 +246,14 @@ async function switchTab(tab: TabName): Promise<void> {
   createPanel?.classList.toggle('hidden', tab !== 'create');
   historyPanel?.classList.toggle('hidden', tab !== 'history');
 
+  // Hide success section when switching tabs (it's outside panels)
+  elements.successSection.classList.add('hidden');
+
+  // When switching to create tab, ensure form is visible (not success state)
+  if (tab === 'create') {
+    showSection('form');
+  }
+
   // Lazy load history on first switch to History tab
   if (tab === 'history' && !state.historyLoaded) {
     const entries = await loadHistory();
