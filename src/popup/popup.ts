@@ -9,7 +9,6 @@ import type {
   AsanaProject,
   AsanaSection,
   AsanaTag,
-  AsanaTask,
   AsanaUser,
   LastUsedSelections,
   GmailEmailInfo,
@@ -17,6 +16,7 @@ import type {
   AIConfig,
   AIInput,
   CreateTaskPayload,
+  CreateTaskResponse,
   Warning,
 } from '../shared/types';
 import { STORAGE_KEYS } from '../shared/constants';
@@ -32,11 +32,6 @@ import { loadHistory, renderHistoryList, saveToHistory } from './history';
 // =============================================================================
 
 type TabName = 'create' | 'history';
-
-const TAB_IDS = {
-  create: 'panel-create',
-  history: 'panel-history',
-} as const;
 
 // =============================================================================
 // DOM Elements
@@ -229,10 +224,7 @@ function showSection(section: 'auth' | 'loading' | 'form' | 'success'): void {
  * Switch between tabs (Create Task / History)
  */
 async function switchTab(tab: TabName): Promise<void> {
-  console.log('switchTab called with:', tab, 'current:', state.activeTab);
-
   if (state.activeTab === tab) {
-    console.log('Same tab, skipping');
     return;
   }
 
@@ -245,8 +237,7 @@ async function switchTab(tab: TabName): Promise<void> {
     button.setAttribute('aria-selected', buttonTab === tab ? 'true' : 'false');
   });
 
-  // Toggle panel visibility using cached elements
-  console.log('Toggling panels, panelCreate:', elements.panelCreate, 'panelHistory:', elements.panelHistory);
+  // Toggle panel visibility
   if (tab === 'create') {
     elements.panelCreate.classList.remove('hidden');
     elements.panelHistory.classList.add('hidden');
@@ -261,10 +252,7 @@ async function switchTab(tab: TabName): Promise<void> {
 
   // Load and render history when switching to History tab
   if (tab === 'history') {
-    console.log('Loading history, historyLoaded:', state.historyLoaded);
     const entries = await loadHistory();
-    console.log('Loaded history entries:', entries);
-    console.log('historyContainer:', elements.historyContainer);
     renderHistoryList(elements.historyContainer, entries);
     state.historyLoaded = true;
   }
@@ -1248,7 +1236,7 @@ async function handleSubmitTask(): Promise<void> {
     }
 
     // Send to service worker
-    const response = await sendMessage<AsanaTask>({
+    const response = await sendMessage<CreateTaskResponse>({
       type: 'CREATE_TASK',
       payload,
     });
@@ -1257,11 +1245,14 @@ async function handleSubmitTask(): Promise<void> {
       // Save selections for next time
       await saveLastUsedSelections();
 
-      // Save to history
+      // Get task name from form input (API response doesn't include it)
+      const taskName = elements.taskNameInput.value;
+
+      // Save to history (use taskGid/taskUrl from response, name from form)
       await saveToHistory({
-        gid: response.data.gid,
-        name: response.data.name,
-        permalink_url: response.data.permalink_url,
+        gid: response.data.taskGid!,
+        name: taskName,
+        permalink_url: response.data.taskUrl!,
         createdAt: Date.now(),
       });
 
@@ -1269,8 +1260,8 @@ async function handleSubmitTask(): Promise<void> {
       state.historyLoaded = false;
 
       // Show success
-      elements.taskLink.href = response.data.permalink_url;
-      elements.taskLink.textContent = response.data.name;
+      elements.taskLink.href = response.data.taskUrl!;
+      elements.taskLink.textContent = taskName;
       showSection('success');
     } else {
       const errorMessage = getErrorMessage(response.error, response.errorCode, 'create task');
@@ -1309,20 +1300,18 @@ async function handleRefreshCache(): Promise<void> {
 
 function setupEventListeners(): void {
   // Tab bar click (event delegation)
-  console.log('Setting up tab bar listener, tabBar:', elements.tabBar);
-  elements.tabBar.addEventListener('click', (e) => {
-    console.log('Tab bar clicked', e.target);
-    const target = e.target as HTMLElement;
-    const tabButton = target.closest('.tab-button') as HTMLElement;
-    console.log('Tab button found:', tabButton);
-    if (tabButton) {
-      const tab = tabButton.dataset.tab as TabName;
-      console.log('Tab data:', tab);
-      if (tab) {
-        switchTab(tab);
+  if (elements.tabBar) {
+    elements.tabBar.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const tabButton = target.closest('.tab-button') as HTMLElement;
+      if (tabButton) {
+        const tab = tabButton.dataset.tab as TabName;
+        if (tab) {
+          switchTab(tab);
+        }
       }
-    }
-  });
+    });
+  }
 
   // Login button
   elements.loginButton.addEventListener('click', handleLogin);
@@ -1371,16 +1360,20 @@ function setupEventListeners(): void {
   });
 
   // History item click (event delegation)
-  elements.historyContainer.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    const historyItem = target.closest('.history-item') as HTMLElement;
-    if (historyItem) {
-      const url = historyItem.dataset.url;
-      if (url) {
-        chrome.tabs.create({ url });
+  if (elements.historyContainer) {
+    elements.historyContainer.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const historyItem = target.closest('.history-item') as HTMLElement;
+      if (historyItem) {
+        const url = historyItem.dataset.url;
+        if (url) {
+          chrome.tabs.create({ url });
+        }
       }
-    }
-  });
+    });
+  } else {
+    console.error('History container element not found!');
+  }
 
   // Assignee change
   elements.assigneeSelect.addEventListener('change', () => {
