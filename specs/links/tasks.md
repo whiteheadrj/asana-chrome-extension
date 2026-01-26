@@ -259,7 +259,7 @@ After POC validated, clean up code structure.
   - **Done when**: Build succeeds, all tests pass
   - **Commit**: `chore(links): pass local CI` (if fixes needed)
 
-- [ ] 4.2 [VERIFY] CI pipeline passes
+- [x] 4.2 [VERIFY] CI pipeline passes
   - **Do**:
     1. Create feature branch if not exists: `git checkout -b feat/task-history-links`
     2. Stage and commit all changes
