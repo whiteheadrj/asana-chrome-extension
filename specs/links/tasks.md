@@ -230,7 +230,7 @@ After POC validated, clean up code structure.
   - _Requirements: AC-2.1, AC-4.5_
   - _Design: Test Strategy_
 
-- [ ] 3.2 E2E test for tab switching and history display
+- [x] 3.2 E2E test for tab switching and history display
   - **Do**:
     1. Create `/Users/rjwhitehead/asana-plugin/e2e/task-history.e2e.test.ts`
     2. Follow pattern from task-creation-fields.e2e.test.ts
