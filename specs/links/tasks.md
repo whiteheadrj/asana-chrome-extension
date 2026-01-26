@@ -135,7 +135,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-1, FR-2, AC-1.2, AC-1.3_
   - _Design: Tab Switching_
 
-- [ ] 1.11 [VERIFY] Quality checkpoint
+- [x] 1.11 [VERIFY] Quality checkpoint
   - **Do**: Run lint and type check
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: No lint errors, no type errors
