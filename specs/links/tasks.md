@@ -167,7 +167,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-6, AC-3.1, AC-3.2, AC-3.3_
   - _Design: History List_
 
-- [ ] 1.14 POC Checkpoint: End-to-end validation
+- [x] 1.14 POC Checkpoint: End-to-end validation
   - **Do**:
     1. Build extension: `pnpm build`
     2. Load extension in Chrome manually
