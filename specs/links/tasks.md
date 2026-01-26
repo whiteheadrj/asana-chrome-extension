@@ -49,7 +49,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - **Done when**: No lint errors, no type errors
   - **Commit**: `chore(history): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 1.5 Add formatRelativeTime to history.ts
+- [x] 1.5 Add formatRelativeTime to history.ts
   - **Do**:
     1. Add `formatRelativeTime(timestamp: number): string` function
     2. Return "Just now" for < 1 minute
