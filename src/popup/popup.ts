@@ -25,6 +25,7 @@ import { generateTaskName } from '../shared/ai';
 import { isOffline } from '../shared/errors';
 import type { MessageErrorCode } from '../shared/messaging';
 import { buildGmailSearchString, buildOutlookSearchString } from './email-search';
+import { loadHistory, renderHistoryList } from './history';
 
 // =============================================================================
 // DOM Elements
@@ -76,6 +77,13 @@ const elements = {
 
   // Success
   taskLink: document.getElementById('task-link') as HTMLAnchorElement,
+
+  // Tabs
+  tabBar: document.querySelector('.tab-bar') as HTMLElement,
+  tabButtons: document.querySelectorAll('.tab-button') as NodeListOf<HTMLButtonElement>,
+  panelCreate: document.getElementById('panel-create') as HTMLElement,
+  panelHistory: document.getElementById('panel-history') as HTMLElement,
+  historyContainer: document.getElementById('history-container') as HTMLElement,
 };
 
 // =============================================================================
@@ -112,6 +120,9 @@ interface PopupLocalState {
   dueTime: string | null;
   // Warnings
   warnings: Warning[];
+  // Tab state
+  activeTab: 'create' | 'history';
+  historyLoaded: boolean;
 }
 
 const state: PopupLocalState = {
@@ -144,6 +155,9 @@ const state: PopupLocalState = {
   dueTime: null,
   // Warnings
   warnings: [],
+  // Tab state
+  activeTab: 'create',
+  historyLoaded: false,
 };
 
 // =============================================================================
@@ -198,6 +212,33 @@ function showSection(section: 'auth' | 'loading' | 'form' | 'success'): void {
   elements.loadingSection.classList.toggle('hidden', section !== 'loading');
   elements.taskForm.classList.toggle('hidden', section !== 'form');
   elements.successSection.classList.toggle('hidden', section !== 'success');
+}
+
+/**
+ * Switch between tabs (Create Task / History)
+ */
+async function switchTab(tab: 'create' | 'history'): Promise<void> {
+  if (state.activeTab === tab) return;
+
+  state.activeTab = tab;
+
+  // Toggle active class on tab buttons
+  elements.tabButtons.forEach(button => {
+    const buttonTab = button.dataset.tab;
+    button.classList.toggle('active', buttonTab === tab);
+    button.setAttribute('aria-selected', buttonTab === tab ? 'true' : 'false');
+  });
+
+  // Toggle hidden class on panels
+  elements.panelCreate.classList.toggle('hidden', tab !== 'create');
+  elements.panelHistory.classList.toggle('hidden', tab !== 'history');
+
+  // Lazy load history on first switch to History tab
+  if (tab === 'history' && !state.historyLoaded) {
+    const entries = await loadHistory();
+    renderHistoryList(elements.historyContainer, entries);
+    state.historyLoaded = true;
+  }
 }
 
 function showError(message: string): void {
@@ -1227,6 +1268,18 @@ async function handleRefreshCache(): Promise<void> {
 // =============================================================================
 
 function setupEventListeners(): void {
+  // Tab bar click (event delegation)
+  elements.tabBar.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const tabButton = target.closest('.tab-button') as HTMLElement;
+    if (tabButton) {
+      const tab = tabButton.dataset.tab as 'create' | 'history';
+      if (tab) {
+        switchTab(tab);
+      }
+    }
+  });
+
   // Login button
   elements.loginButton.addEventListener('click', handleLogin);
 

@@ -120,7 +120,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: AC-1.4, AC-1.5, NFR-4_
   - _Design: CSS Additions_
 
-- [ ] 1.10 Add tab switching logic to popup.ts
+- [x] 1.10 Add tab switching logic to popup.ts
   - **Do**:
     1. Import `loadHistory`, `renderHistoryList` from `./history`
     2. Add DOM elements: tabButtons, panelCreate, panelHistory, historyContainer
