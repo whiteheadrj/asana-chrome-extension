@@ -240,25 +240,27 @@ async function switchTab(tab: TabName): Promise<void> {
     button.setAttribute('aria-selected', buttonTab === tab ? 'true' : 'false');
   });
 
-  // Toggle hidden class on panels using constants
-  const createPanel = document.getElementById(TAB_IDS.create);
-  const historyPanel = document.getElementById(TAB_IDS.history);
-  createPanel?.classList.toggle('hidden', tab !== 'create');
-  historyPanel?.classList.toggle('hidden', tab !== 'history');
+  // Toggle panel visibility using cached elements
+  if (tab === 'create') {
+    elements.panelCreate.classList.remove('hidden');
+    elements.panelHistory.classList.add('hidden');
+    showSection('form');
+  } else {
+    elements.panelCreate.classList.add('hidden');
+    elements.panelHistory.classList.remove('hidden');
+  }
 
   // Hide success section when switching tabs (it's outside panels)
   elements.successSection.classList.add('hidden');
 
-  // When switching to create tab, ensure form is visible (not success state)
-  if (tab === 'create') {
-    showSection('form');
-  }
-
   // Lazy load history on first switch to History tab
-  if (tab === 'history' && !state.historyLoaded) {
-    const entries = await loadHistory();
-    renderHistoryList(elements.historyContainer, entries);
-    state.historyLoaded = true;
+  if (tab === 'history') {
+    if (!state.historyLoaded) {
+      const entries = await loadHistory();
+      console.log('Loaded history entries:', entries);
+      renderHistoryList(elements.historyContainer, entries);
+      state.historyLoaded = true;
+    }
   }
 }
 
