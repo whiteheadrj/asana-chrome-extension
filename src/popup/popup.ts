@@ -229,7 +229,12 @@ function showSection(section: 'auth' | 'loading' | 'form' | 'success'): void {
  * Switch between tabs (Create Task / History)
  */
 async function switchTab(tab: TabName): Promise<void> {
-  if (state.activeTab === tab) return;
+  console.log('switchTab called with:', tab, 'current:', state.activeTab);
+
+  if (state.activeTab === tab) {
+    console.log('Same tab, skipping');
+    return;
+  }
 
   state.activeTab = tab;
 
@@ -241,6 +246,7 @@ async function switchTab(tab: TabName): Promise<void> {
   });
 
   // Toggle panel visibility using cached elements
+  console.log('Toggling panels, panelCreate:', elements.panelCreate, 'panelHistory:', elements.panelHistory);
   if (tab === 'create') {
     elements.panelCreate.classList.remove('hidden');
     elements.panelHistory.classList.add('hidden');
@@ -253,14 +259,14 @@ async function switchTab(tab: TabName): Promise<void> {
   // Hide success section when switching tabs (it's outside panels)
   elements.successSection.classList.add('hidden');
 
-  // Lazy load history on first switch to History tab
+  // Load and render history when switching to History tab
   if (tab === 'history') {
-    if (!state.historyLoaded) {
-      const entries = await loadHistory();
-      console.log('Loaded history entries:', entries);
-      renderHistoryList(elements.historyContainer, entries);
-      state.historyLoaded = true;
-    }
+    console.log('Loading history, historyLoaded:', state.historyLoaded);
+    const entries = await loadHistory();
+    console.log('Loaded history entries:', entries);
+    console.log('historyContainer:', elements.historyContainer);
+    renderHistoryList(elements.historyContainer, entries);
+    state.historyLoaded = true;
   }
 }
 
@@ -1303,11 +1309,15 @@ async function handleRefreshCache(): Promise<void> {
 
 function setupEventListeners(): void {
   // Tab bar click (event delegation)
+  console.log('Setting up tab bar listener, tabBar:', elements.tabBar);
   elements.tabBar.addEventListener('click', (e) => {
+    console.log('Tab bar clicked', e.target);
     const target = e.target as HTMLElement;
     const tabButton = target.closest('.tab-button') as HTMLElement;
+    console.log('Tab button found:', tabButton);
     if (tabButton) {
       const tab = tabButton.dataset.tab as TabName;
+      console.log('Tab data:', tab);
       if (tab) {
         switchTab(tab);
       }
