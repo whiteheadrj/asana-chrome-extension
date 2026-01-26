@@ -43,7 +43,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-2, FR-3, FR-5, AC-4.1, AC-4.3, AC-4.4, AC-4.5_
   - _Design: history.ts Module_
 
-- [ ] 1.4 [VERIFY] Quality checkpoint
+- [x] 1.4 [VERIFY] Quality checkpoint
   - **Do**: Run lint and type check
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: No lint errors, no type errors
