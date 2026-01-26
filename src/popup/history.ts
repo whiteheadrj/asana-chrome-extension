@@ -12,22 +12,32 @@ const MAX_HISTORY_ENTRIES = 50;
 
 /**
  * Load task history from storage
- * @returns Promise resolving to array of history entries (empty if none stored)
+ * @returns Promise resolving to array of history entries (empty if none stored or on error)
  */
 export async function loadHistory(): Promise<TaskHistoryEntry[]> {
-  const history = await get<TaskHistoryEntry[]>(STORAGE_KEYS.TASK_HISTORY);
-  return history ?? [];
+  try {
+    const history = await get<TaskHistoryEntry[]>(STORAGE_KEYS.TASK_HISTORY);
+    return history ?? [];
+  } catch (error) {
+    console.error('Failed to load task history:', error);
+    return [];
+  }
 }
 
 /**
  * Save a task to history
  * Prepends to array (LIFO) and caps at MAX_HISTORY_ENTRIES
+ * Errors are logged but don't block task creation
  * @param task - Task history entry to save
  */
 export async function saveToHistory(task: TaskHistoryEntry): Promise<void> {
-  const history = await loadHistory();
-  const updated = [task, ...history].slice(0, MAX_HISTORY_ENTRIES);
-  await set(STORAGE_KEYS.TASK_HISTORY, updated);
+  try {
+    const history = await loadHistory();
+    const updated = [task, ...history].slice(0, MAX_HISTORY_ENTRIES);
+    await set(STORAGE_KEYS.TASK_HISTORY, updated);
+  } catch (error) {
+    console.error('Failed to save task to history:', error);
+  }
 }
 
 /**
@@ -87,6 +97,12 @@ export function renderHistoryList(
   ul.className = 'history-list';
 
   for (const entry of entries) {
+    // Skip invalid entries gracefully
+    if (!entry || !entry.name || !entry.permalink_url || typeof entry.createdAt !== 'number') {
+      console.warn('Skipping invalid history entry:', entry);
+      continue;
+    }
+
     const li = document.createElement('li');
     li.className = 'history-item';
     li.dataset.url = entry.permalink_url;

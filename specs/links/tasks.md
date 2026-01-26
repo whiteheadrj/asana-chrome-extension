@@ -196,7 +196,7 @@ After POC validated, clean up code structure.
   - **Commit**: `refactor(popup): extract tab constants and improve types`
   - _Design: Technical Decisions_
 
-- [ ] 2.2 Add error handling to history operations
+- [x] 2.2 Add error handling to history operations
   - **Do**:
     1. In loadHistory: wrap in try/catch, log error, return empty array on failure
     2. In saveToHistory: wrap in try/catch, log error, don't block task creation
