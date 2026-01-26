@@ -100,7 +100,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - **Done when**: No lint errors, no type errors
   - **Commit**: `chore(popup): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 1.9 Add tab and history CSS styles
+- [x] 1.9 Add tab and history CSS styles
   - **Do**:
     1. Add `.tab-bar` (flex, border-bottom)
     2. Add `.tab-button` (flex:1, padding, transparent bg, border-bottom:2px transparent)
