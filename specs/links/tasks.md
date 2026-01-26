@@ -78,7 +78,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-2, FR-7, AC-2.1, AC-2.2, AC-2.4_
   - _Design: History List, Empty State_
 
-- [ ] 1.7 Add tab bar and history panel to popup.html
+- [x] 1.7 Add tab bar and history panel to popup.html
   - **Do**:
     1. After `</header>`, add tab bar nav with role="tablist"
     2. Two buttons: "Create Task" (data-tab="create", active) and "History" (data-tab="history")
