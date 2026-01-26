@@ -29,7 +29,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-3_
   - _Design: STORAGE_KEYS Addition_
 
-- [ ] 1.3 Create history.ts module with storage functions
+- [x] 1.3 Create history.ts module with storage functions
   - **Do**:
     1. Create new file `/Users/rjwhitehead/asana-plugin/src/popup/history.ts`
     2. Import `TaskHistoryEntry` from types, `STORAGE_KEYS` from constants, `get`/`set` from storage
