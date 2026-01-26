@@ -253,7 +253,7 @@ After POC validated, clean up code structure.
 
 ## Phase 4: Quality Gates
 
-- [ ] 4.1 [VERIFY] Full local CI
+- [x] 4.1 [VERIFY] Full local CI
   - **Do**: Run complete local CI suite
   - **Verify**: `pnpm lint && pnpm check-types && pnpm test && pnpm test:e2e && pnpm build`
   - **Done when**: Build succeeds, all tests pass
