@@ -94,7 +94,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-1, AC-1.1, AC-1.4_
   - _Design: HTML Structure Changes_
 
-- [ ] 1.8 [VERIFY] Quality checkpoint
+- [x] 1.8 [VERIFY] Quality checkpoint
   - **Do**: Run lint and type check
   - **Verify**: `pnpm lint && pnpm check-types`
   - **Done when**: No lint errors, no type errors
