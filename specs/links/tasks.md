@@ -215,7 +215,7 @@ After POC validated, clean up code structure.
 
 ## Phase 3: Testing
 
-- [ ] 3.1 Unit tests for history.ts functions
+- [x] 3.1 Unit tests for history.ts functions
   - **Do**:
     1. Create `/Users/rjwhitehead/asana-plugin/src/popup/__tests__/history.test.ts`
     2. Mock chrome.storage.local
