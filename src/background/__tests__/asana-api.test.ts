@@ -12,6 +12,8 @@ import {
   getProjects,
   getSections,
   getTags,
+  getUsers,
+  getCurrentUser,
   createTask,
 } from '../asana-api.js';
 import { STORAGE_KEYS, ASANA_API_BASE } from '../../shared/constants.js';
@@ -532,6 +534,104 @@ describe('asana-api module', () => {
   });
 
   // ===========================================================================
+  // getUsers
+  // ===========================================================================
+
+  describe('getUsers', () => {
+    it('fetches users for a workspace', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: [
+            { gid: 'user1', name: 'Alice', email: 'alice@example.com' },
+            { gid: 'user2', name: 'Bob', email: 'bob@example.com' },
+          ],
+        })
+      );
+
+      const result = await getUsers('workspace123');
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/workspaces/workspace123/users'),
+        expect.any(Object)
+      );
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        gid: 'user1',
+        name: 'Alice',
+        email: 'alice@example.com',
+      });
+      expect(result[1]).toEqual({
+        gid: 'user2',
+        name: 'Bob',
+        email: 'bob@example.com',
+      });
+    });
+
+    it('returns empty array for workspace with no users', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({ data: [] })
+      );
+
+      const result = await getUsers('emptyWorkspace');
+
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    it('requests gid, name, and email opt_fields', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({ data: [] })
+      );
+
+      await getUsers('ws1');
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const url = new URL(call[0]);
+      expect(url.searchParams.get('opt_fields')).toBe('gid,name,email');
+    });
+  });
+
+  // ===========================================================================
+  // getCurrentUser
+  // ===========================================================================
+
+  describe('getCurrentUser', () => {
+    it('fetches the current user from /users/me endpoint', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: 'me123', name: 'Current User', email: 'me@example.com' },
+        })
+      );
+
+      const result = await getCurrentUser();
+
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/users/me'),
+        expect.any(Object)
+      );
+      expect(result).toEqual({
+        gid: 'me123',
+        name: 'Current User',
+        email: 'me@example.com',
+      });
+    });
+
+    it('requests gid, name, and email opt_fields', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: 'me1', name: 'User', email: 'user@test.com' },
+        })
+      );
+
+      await getCurrentUser();
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const url = new URL(call[0]);
+      expect(url.searchParams.get('opt_fields')).toBe('gid,name,email');
+    });
+  });
+
+  // ===========================================================================
   // createTask
   // ===========================================================================
 
@@ -700,6 +800,144 @@ describe('asana-api module', () => {
       const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
       const url = new URL(call[0]);
       expect(url.searchParams.get('opt_fields')).toBe('gid,name,permalink_url');
+    });
+
+    it('includes assignee in request body when provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        assignee: 'user123',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.assignee).toBe('user123');
+    });
+
+    it('excludes assignee from body when not provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.assignee).toBeUndefined();
+    });
+
+    it('includes due_on in request body when provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        due_on: '2026-01-23',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.due_on).toBe('2026-01-23');
+      expect(body.data.due_at).toBeUndefined();
+    });
+
+    it('includes due_at in request body when provided', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        due_at: '2026-01-23T14:30:00.000Z',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      expect(body.data.due_at).toBe('2026-01-23T14:30:00.000Z');
+      expect(body.data.due_on).toBeUndefined();
+    });
+
+    it('uses due_at over due_on when both provided (mutual exclusion)', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Task',
+        workspaceGid: 'ws',
+        projectGid: 'proj',
+        due_on: '2026-01-23',
+        due_at: '2026-01-23T14:30:00.000Z',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      // due_at takes precedence per Asana API spec
+      expect(body.data.due_at).toBe('2026-01-23T14:30:00.000Z');
+      expect(body.data.due_on).toBeUndefined();
+    });
+
+    it('includes all new fields together in request body', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        createMockResponse({
+          data: { gid: '1', name: 'Complete Task', permalink_url: 'http://url' },
+        })
+      );
+
+      await createTask({
+        name: 'Complete Task',
+        workspaceGid: 'workspace1',
+        projectGid: 'project1',
+        notes: 'Task notes',
+        sectionGid: 'section1',
+        tagGids: ['tag1'],
+        assignee: 'user456',
+        due_on: '2026-02-15',
+      });
+
+      const call = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+      const body = JSON.parse(call[1].body);
+
+      // Verify request body structure matches Asana API spec
+      expect(body.data.name).toBe('Complete Task');
+      expect(body.data.workspace).toBe('workspace1');
+      expect(body.data.projects).toContain('project1');
+      expect(body.data.notes).toBe('Task notes');
+      expect(body.data.memberships).toEqual([
+        { project: 'project1', section: 'section1' },
+      ]);
+      expect(body.data.tags).toEqual(['tag1']);
+      expect(body.data.assignee).toBe('user456');
+      expect(body.data.due_on).toBe('2026-02-15');
     });
   });
 });

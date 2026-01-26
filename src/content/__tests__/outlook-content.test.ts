@@ -13,6 +13,8 @@ import {
   getEmailBody,
   getEmailSubject,
   getSenderInfo,
+  getSenderDetails,
+  getEmailDate,
 } from '../outlook-content.js';
 
 // =============================================================================
@@ -493,6 +495,536 @@ describe('getSenderInfo', () => {
       expect(result).toBeUndefined();
 
       mockQuerySelectorAll.mockRestore();
+    });
+  });
+});
+
+// =============================================================================
+// getSenderDetails Tests
+// =============================================================================
+
+describe('getSenderDetails', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (span[aria-label^="From:"] in Email message)', () => {
+    it('extracts both name and email from "Name<email>" format', () => {
+      // Create DOM manually to avoid HTML parsing issues with < and >
+      const emailContainer = document.createElement('div');
+      emailContainer.setAttribute('aria-label', 'Email message');
+      const fromSpan = document.createElement('span');
+      fromSpan.setAttribute('aria-label', 'From: John Doe');
+      fromSpan.textContent = 'John Doe<john@example.com>';
+      emailContainer.appendChild(fromSpan);
+      mockContainer.appendChild(emailContainer);
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('John Doe');
+      expect(result.email).toBe('john@example.com');
+    });
+
+    it('extracts name only when no email pattern', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span aria-label="From: Support Team">Support Team</span>
+        </div>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Support Team');
+      expect(result.email).toBeUndefined();
+    });
+
+    it('extracts email with special characters', () => {
+      const emailContainer = document.createElement('div');
+      emailContainer.setAttribute('aria-label', 'Email message');
+      const fromSpan = document.createElement('span');
+      fromSpan.setAttribute('aria-label', 'From: John');
+      fromSpan.textContent = 'John Smith<john.smith+work@example.co.uk>';
+      emailContainer.appendChild(fromSpan);
+      mockContainer.appendChild(emailContainer);
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('John Smith');
+      expect(result.email).toBe('john.smith+work@example.co.uk');
+    });
+
+    it('trims whitespace from name', () => {
+      const emailContainer = document.createElement('div');
+      emailContainer.setAttribute('aria-label', 'Email message');
+      const fromSpan = document.createElement('span');
+      fromSpan.setAttribute('aria-label', 'From: Test');
+      fromSpan.textContent = '  Jane Doe  <jane@example.com>';
+      emailContainer.appendChild(fromSpan);
+      mockContainer.appendChild(emailContainer);
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Jane Doe');
+      expect(result.email).toBe('jane@example.com');
+    });
+
+    it('handles multiple Email message containers (returns first)', () => {
+      const container1 = document.createElement('div');
+      container1.setAttribute('aria-label', 'Email message');
+      const span1 = document.createElement('span');
+      span1.setAttribute('aria-label', 'From: First Sender');
+      span1.textContent = 'First Sender<first@example.com>';
+      container1.appendChild(span1);
+
+      const container2 = document.createElement('div');
+      container2.setAttribute('aria-label', 'Email message');
+      const span2 = document.createElement('span');
+      span2.setAttribute('aria-label', 'From: Second Sender');
+      span2.textContent = 'Second Sender<second@example.com>';
+      container2.appendChild(span2);
+
+      mockContainer.appendChild(container1);
+      mockContainer.appendChild(container2);
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('First Sender');
+      expect(result.email).toBe('first@example.com');
+    });
+  });
+
+  describe('heading pattern fallback', () => {
+    it('extracts sender from heading with email pattern', () => {
+      const emailContainer = document.createElement('div');
+      emailContainer.setAttribute('aria-label', 'Email message');
+      const headingSpan = document.createElement('span');
+      headingSpan.setAttribute('role', 'heading');
+      headingSpan.textContent = 'Notifications<notifications@example.com>';
+      emailContainer.appendChild(headingSpan);
+      mockContainer.appendChild(emailContainer);
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Notifications');
+      expect(result.email).toBe('notifications@example.com');
+    });
+  });
+
+  describe('legacy selectors', () => {
+    it('falls back to data-app-section FromLine with name<email> format', () => {
+      const fromLine = document.createElement('div');
+      fromLine.setAttribute('data-app-section', 'FromLine');
+      const span = document.createElement('span');
+      span.textContent = 'Legacy User<legacy@example.com>';
+      fromLine.appendChild(span);
+      mockContainer.appendChild(fromLine);
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Legacy User');
+      expect(result.email).toBe('legacy@example.com');
+    });
+
+    it('falls back to data-app-section FromLine with name only', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="FromLine">
+          <span>Legacy Sender Name</span>
+        </div>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Legacy Sender Name');
+      expect(result.email).toBeUndefined();
+    });
+
+    it('falls back to PersonaName id selector', () => {
+      mockContainer.innerHTML = `
+        <span id="PersonaName_123">Persona Sender</span>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBe('Persona Sender');
+      expect(result.email).toBeUndefined();
+    });
+  });
+
+  describe('email fallback from aria-label', () => {
+    it('extracts email only from role=img aria-label', () => {
+      mockContainer.innerHTML = `
+        <div role="img" aria-label="Profile picture of sender@example.com"></div>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBe('sender@example.com');
+    });
+
+    it('extracts email only from button aria-label', () => {
+      mockContainer.innerHTML = `
+        <button aria-label="Contact card for user@domain.org"></button>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBe('user@domain.org');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns empty object when no sender found', () => {
+      mockContainer.innerHTML = '<div class="unrelated">No sender here</div>';
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+    });
+
+    it('returns empty object when container is empty', () => {
+      mockContainer.innerHTML = '';
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+    });
+
+    it('rejects sender over 200 characters', () => {
+      const longName = 'A'.repeat(201);
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span aria-label="From: Long">${longName}</span>
+        </div>
+      `;
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+    });
+
+    it('handles error gracefully', () => {
+      const mockQuerySelectorAll = vi
+        .spyOn(document, 'querySelectorAll')
+        .mockImplementation(() => {
+          throw new Error('DOM error');
+        });
+
+      const result = getSenderDetails();
+      expect(result.name).toBeUndefined();
+      expect(result.email).toBeUndefined();
+
+      mockQuerySelectorAll.mockRestore();
+    });
+  });
+});
+
+// =============================================================================
+// getEmailDate Tests
+// =============================================================================
+
+describe('getEmailDate', () => {
+  let mockContainer: HTMLDivElement;
+
+  beforeEach(() => {
+    mockContainer = document.createElement('div');
+    document.body.appendChild(mockContainer);
+  });
+
+  afterEach(() => {
+    mockContainer.remove();
+    vi.restoreAllMocks();
+  });
+
+  describe('primary selector (time[datetime] in Email message container)', () => {
+    it('extracts date from time element datetime attribute', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <time datetime="2024-01-15T10:30:00Z">Jan 15, 2024</time>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-01-15');
+    });
+
+    it('extracts date from ISO datetime format', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <time datetime="2024-03-22T14:45:00.000Z">March 22</time>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-03-22');
+    });
+  });
+
+  describe('span text parsing in Email message container', () => {
+    it('extracts date from span with MMM DD, YYYY format', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>Jan 15, 2024</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-01-15');
+    });
+
+    it('extracts date from span with DD MMM YYYY format', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>15 Jan 2024</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-01-15');
+    });
+
+    it('extracts date from span with full month name', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>January 15, 2024</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-01-15');
+    });
+  });
+
+  describe('fallback selectors (data-app-section)', () => {
+    it('extracts date from DateTimeLine selector', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="DateTimeLine">March 20, 2024</div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-03-20');
+    });
+
+    it('extracts date from ReceivedTimeLine selector', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="ReceivedTimeLine">April 5, 2024</div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-04-05');
+    });
+
+    it('extracts date from span with DateTimeLine id', () => {
+      mockContainer.innerHTML = `
+        <span id="DateTimeLine_123">May 10, 2024</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-05-10');
+    });
+
+    it('extracts date from textContent when no datetime attribute on parent', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="DateTimeLine">June 15, 2024</div>
+      `;
+
+      // The selector finds the div, checks for datetime attr (not present on div),
+      // then falls back to textContent parsing
+      const result = getEmailDate();
+      expect(result).toBe('2024-06-15');
+    });
+  });
+
+  describe('aria-label selectors', () => {
+    it('extracts date from aria-label containing "sent"', () => {
+      mockContainer.innerHTML = `
+        <span aria-label="sent July 20, 2024">Sent</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-07-20');
+    });
+
+    it('extracts date from aria-label containing "received"', () => {
+      mockContainer.innerHTML = `
+        <span aria-label="received August 12, 2024">Received</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-08-12');
+    });
+
+    it('extracts date from aria-label with "Sent:" prefix', () => {
+      mockContainer.innerHTML = `
+        <span aria-label="Sent: September 5, 2024">Sep 5</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-09-05');
+    });
+  });
+
+  describe('title attribute selectors', () => {
+    it('extracts date from title with "Sent:" prefix', () => {
+      mockContainer.innerHTML = `
+        <span title="Sent: October 10, 2024">Oct 10</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-10-10');
+    });
+
+    it('extracts date from title with "Received:" prefix', () => {
+      mockContainer.innerHTML = `
+        <span title="Received: November 22, 2024">Nov 22</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-11-22');
+    });
+
+    it('extracts date from span title with date-like content', () => {
+      mockContainer.innerHTML = `
+        <span title="Dec 25, 2024">Dec 25</span>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-12-25');
+    });
+  });
+
+  describe('special date strings', () => {
+    it('parses "Today" to current date', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>Today at 3:30 PM</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      const today = new Date().toISOString().split('T')[0];
+      expect(result).toBe(today);
+    });
+
+    it('parses "Yesterday" to yesterday date', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>Yesterday at 10:00 AM</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const expectedDate = yesterday.toISOString().split('T')[0];
+      expect(result).toBe(expectedDate);
+    });
+  });
+
+  describe('date format parsing', () => {
+    it('parses MM/DD/YYYY format', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="DateTimeLine">01/15/2024</div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-01-15');
+    });
+
+    it('parses YYYY-MM-DD ISO format', () => {
+      mockContainer.innerHTML = `
+        <div data-app-section="DateTimeLine">2024-02-28</div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-02-28');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns undefined when no date found', () => {
+      mockContainer.innerHTML = '<div class="unrelated">No date here</div>';
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when container is empty', () => {
+      mockContainer.innerHTML = '';
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('skips spans with text too short to be dates', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>Hi</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('skips spans with text too long to be dates', () => {
+      const longText = 'A'.repeat(60);
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>${longText}</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('handles invalid date strings gracefully', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>Not a valid date format at all</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+    });
+
+    it('handles error gracefully', () => {
+      const mockQuerySelectorAll = vi
+        .spyOn(document, 'querySelectorAll')
+        .mockImplementation(() => {
+          throw new Error('DOM error');
+        });
+
+      const result = getEmailDate();
+      expect(result).toBeUndefined();
+
+      mockQuerySelectorAll.mockRestore();
+    });
+  });
+
+  describe('selector priority', () => {
+    it('prefers time[datetime] over span text', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <time datetime="2024-01-01T00:00:00Z">Jan 1</time>
+          <span>Feb 15, 2024</span>
+        </div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-01-01');
+    });
+
+    it('uses Email message container before data-app-section selectors', () => {
+      mockContainer.innerHTML = `
+        <div aria-label="Email message">
+          <span>Jan 10, 2024</span>
+        </div>
+        <div data-app-section="DateTimeLine">Feb 20, 2024</div>
+      `;
+
+      const result = getEmailDate();
+      expect(result).toBe('2024-01-10');
     });
   });
 });

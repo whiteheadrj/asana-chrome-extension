@@ -10,6 +10,7 @@ import type {
   AsanaSection,
   AsanaTag,
   AsanaTask,
+  AsanaUser,
   LastUsedSelections,
   GmailEmailInfo,
   OutlookEmailInfo,
@@ -23,6 +24,7 @@ import { get, set } from '../shared/storage';
 import { generateTaskName } from '../shared/ai';
 import { isOffline } from '../shared/errors';
 import type { MessageErrorCode } from '../shared/messaging';
+import { buildGmailSearchString, buildOutlookSearchString } from './email-search';
 
 // =============================================================================
 // DOM Elements
@@ -51,8 +53,16 @@ const elements = {
   workspaceSelect: document.getElementById('workspace-select') as HTMLSelectElement,
   projectSelect: document.getElementById('project-select') as HTMLSelectElement,
   sectionSelect: document.getElementById('section-select') as HTMLSelectElement,
+  assigneeSelect: document.getElementById('assignee-select') as HTMLSelectElement,
   tagsSelect: document.getElementById('tags-select') as HTMLSelectElement,
   selectedTagsContainer: document.getElementById('selected-tags') as HTMLElement,
+
+  // Due date inputs
+  dueDateInput: document.getElementById('due-date') as HTMLInputElement,
+  btnToday: document.getElementById('btn-today') as HTMLButtonElement,
+  btnTomorrow: document.getElementById('btn-tomorrow') as HTMLButtonElement,
+  includeTimeCheckbox: document.getElementById('include-time') as HTMLInputElement,
+  dueTimeInput: document.getElementById('due-time') as HTMLInputElement,
 
   // Buttons
   refreshCacheButton: document.getElementById('refresh-cache') as HTMLButtonElement,
@@ -77,6 +87,9 @@ interface PopupLocalState {
   projects: AsanaProject[];
   sections: AsanaSection[];
   tags: AsanaTag[];
+  users: AsanaUser[];
+  currentUserGid: string | null;
+  selectedAssigneeGid: string | null;
   selectedTagGids: string[];
   isAuthenticated: boolean;
   // AI state
@@ -89,8 +102,14 @@ interface PopupLocalState {
   accountEmail?: string; // Gmail account email (for task notes)
   emailBody?: string;
   emailSender?: string;
+  senderName?: string;
+  senderEmail?: string;
+  emailDate?: string;
   contentType?: 'email' | 'webpage';
   pageContent?: string; // For non-email pages (up to 2000 chars)
+  // Due date
+  dueDate: string | null;
+  dueTime: string | null;
   // Warnings
   warnings: Warning[];
 }
@@ -100,6 +119,9 @@ const state: PopupLocalState = {
   projects: [],
   sections: [],
   tags: [],
+  users: [],
+  currentUserGid: null,
+  selectedAssigneeGid: null,
   selectedTagGids: [],
   isAuthenticated: false,
   // AI state
@@ -112,11 +134,60 @@ const state: PopupLocalState = {
   accountEmail: undefined,
   emailBody: undefined,
   emailSender: undefined,
+  senderName: undefined,
+  senderEmail: undefined,
+  emailDate: undefined,
   contentType: undefined,
   pageContent: undefined,
+  // Due date
+  dueDate: null,
+  dueTime: null,
   // Warnings
   warnings: [],
 };
+
+// =============================================================================
+// Date Formatting Helpers
+// =============================================================================
+
+/**
+ * Format date for Asana API
+ * Returns due_on (YYYY-MM-DD) for date only, or due_at (ISO string) for date+time
+ *
+ * @param date - Date string in YYYY-MM-DD format
+ * @param time - Optional time string in HH:MM format (local time)
+ * @returns Object with either due_on or due_at field
+ */
+function formatDateForAsana(date: string, time: string | null): { due_on?: string; due_at?: string } {
+  if (!date) {
+    return {};
+  }
+
+  if (time) {
+    // Combine date and time, then convert to UTC ISO string
+    const localDateTime = new Date(`${date}T${time}`);
+    return { due_at: localDateTime.toISOString() };
+  }
+
+  // Date only - use due_on format (YYYY-MM-DD)
+  return { due_on: date };
+}
+
+/**
+ * Format ISO date string as human-readable text for notes
+ *
+ * @param isoDate - Date string (ISO format or YYYY-MM-DD)
+ * @returns Human-readable date string (e.g., "Thursday, January 23, 2026")
+ */
+function formatDateHumanReadable(isoDate: string): string {
+  const dateObj = new Date(isoDate);
+  return dateObj.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
 
 // =============================================================================
 // UI Helpers
@@ -329,6 +400,9 @@ async function requestPageInfo(): Promise<void> {
             state.accountEmail = gmailInfo.accountEmail || undefined;
             state.emailBody = gmailInfo.emailBody;
             state.emailSender = gmailInfo.emailSender;
+            state.senderName = gmailInfo.senderName;
+            state.senderEmail = gmailInfo.senderEmail;
+            state.emailDate = gmailInfo.emailDate;
             state.contentType = 'email';
 
             // Handle warnings from Gmail content script
@@ -342,6 +416,9 @@ async function requestPageInfo(): Promise<void> {
             state.emailSubject = outlookInfo.subject;
             state.emailBody = outlookInfo.emailBody;
             state.emailSender = outlookInfo.emailSender;
+            state.senderName = outlookInfo.senderName;
+            state.senderEmail = outlookInfo.senderEmail;
+            state.emailDate = outlookInfo.emailDate;
             state.contentType = 'email';
           }
         } else {
@@ -515,7 +592,11 @@ async function loadWorkspaces(): Promise<void> {
         const savedWorkspace = state.workspaces.find(w => w.gid === lastUsed.workspaceGid);
         if (savedWorkspace) {
           elements.workspaceSelect.value = lastUsed.workspaceGid;
-          await loadProjects(lastUsed.workspaceGid, lastUsed);
+          // Load projects and users in parallel
+          await Promise.all([
+            loadProjects(lastUsed.workspaceGid, lastUsed),
+            loadAndDefaultAssignee(lastUsed.workspaceGid, lastUsed),
+          ]);
         } else {
           showSection('form');
         }
@@ -544,6 +625,7 @@ async function loadProjects(workspaceGid: string, lastUsed?: LastUsedSelections)
   resetProjectDropdown();
   resetSectionDropdown();
   resetTagsDropdown();
+  // Note: resetAssigneeDropdown is called separately in loadUsers
 
   if (!workspaceGid) return;
 
@@ -644,6 +726,113 @@ async function loadTags(workspaceGid: string): Promise<void> {
   }
 }
 
+/**
+ * Fetch current user GID from Asana API
+ * Returns null on failure (graceful degradation to unassigned)
+ */
+async function fetchCurrentUser(): Promise<string | null> {
+  try {
+    // Note: GET_CURRENT_USER handler may not be implemented yet
+    // This will fail gracefully and fall back to unassigned
+    // Using type assertion since GET_CURRENT_USER is not yet in ExtensionMessage union
+    const response = await chrome.runtime.sendMessage({ type: 'GET_CURRENT_USER' }) as MessageResult<AsanaUser>;
+
+    if (response?.success && response.data?.gid) {
+      return response.data.gid;
+    }
+    return null;
+  } catch (error) {
+    console.debug('Failed to fetch current user, falling back to unassigned:', error);
+    return null;
+  }
+}
+
+/**
+ * Load users and set default assignee
+ * Priority: lastUsed.assigneeGid > currentUserGid > firstUser > unassigned
+ *
+ * Error handling:
+ * - getUsers failure: disable dropdown, show warning, allow unassigned
+ * - getCurrentUser failure: fall back to first user or unassigned
+ */
+async function loadAndDefaultAssignee(workspaceGid: string, lastUsed?: LastUsedSelections): Promise<void> {
+  resetAssigneeDropdown();
+
+  if (!workspaceGid) return;
+
+  elements.assigneeSelect.disabled = true;
+
+  try {
+    // Load users and current user in parallel
+    const [usersResponse, currentUserGid] = await Promise.all([
+      sendMessage<AsanaUser[]>({
+        type: 'GET_USERS',
+        workspaceGid,
+      }),
+      fetchCurrentUser(),
+    ]);
+
+    // Store current user GID for display purposes (marking "(me)" in dropdown)
+    // currentUserGid may be null if getCurrentUser failed - this is OK
+    state.currentUserGid = currentUserGid;
+
+    if (usersResponse.success && usersResponse.data) {
+      state.users = usersResponse.data;
+      populateAssigneeDropdown(state.users, state.currentUserGid);
+
+      // Determine default assignee (priority: lastUsed > currentUser > firstUser > unassigned)
+      let defaultAssigneeGid: string | null = null;
+
+      // Priority 1: Check lastUsed.assigneeGid
+      if (lastUsed?.assigneeGid) {
+        const savedAssignee = state.users.find(u => u.gid === lastUsed.assigneeGid);
+        if (savedAssignee) {
+          defaultAssigneeGid = lastUsed.assigneeGid;
+        }
+      }
+
+      // Priority 2: Fall back to current user if no lastUsed
+      if (!defaultAssigneeGid && state.currentUserGid) {
+        const currentUserInList = state.users.find(u => u.gid === state.currentUserGid);
+        if (currentUserInList) {
+          defaultAssigneeGid = state.currentUserGid;
+        }
+      }
+
+      // Priority 3: Fall back to first user if getCurrentUser failed
+      if (!defaultAssigneeGid && state.users.length > 0) {
+        defaultAssigneeGid = state.users[0].gid;
+      }
+
+      // Apply default selection (or leave as unassigned if null)
+      if (defaultAssigneeGid) {
+        elements.assigneeSelect.value = defaultAssigneeGid;
+        state.selectedAssigneeGid = defaultAssigneeGid;
+      }
+
+      // Enable dropdown for normal usage
+      elements.assigneeSelect.disabled = false;
+    } else {
+      // getUsers failed - disable dropdown but allow form submission with unassigned
+      console.warn('Failed to load users:', usersResponse.error);
+      const errorMessage = getErrorMessage(usersResponse.error, usersResponse.errorCode, 'load assignees');
+
+      // Show non-blocking warning (don't use showError which is more prominent)
+      // Keep dropdown disabled with only "Unassigned" option
+      elements.assigneeSelect.disabled = true;
+      elements.assigneeSelect.title = errorMessage;
+
+      // Log warning but allow task creation to continue (unassigned is valid)
+      console.warn('Assignee dropdown unavailable:', errorMessage);
+    }
+  } catch (error) {
+    // Unexpected error - disable dropdown, allow unassigned
+    console.error('Load users error:', error);
+    elements.assigneeSelect.disabled = true;
+    elements.assigneeSelect.title = 'Unable to load assignees. Task will be created unassigned.';
+  }
+}
+
 // =============================================================================
 // Dropdown Population
 // =============================================================================
@@ -687,6 +876,21 @@ function populateSectionDropdown(): void {
     option.value = section.gid;
     option.textContent = section.name;
     elements.sectionSelect.appendChild(option);
+  }
+}
+
+function populateAssigneeDropdown(users: AsanaUser[], currentUserGid: string | null): void {
+  // Clear existing options (keep first placeholder - "Unassigned")
+  while (elements.assigneeSelect.options.length > 1) {
+    elements.assigneeSelect.remove(1);
+  }
+
+  for (const user of users) {
+    const option = document.createElement('option');
+    option.value = user.gid;
+    // Mark current user with "(me)" suffix
+    option.textContent = user.gid === currentUserGid ? `${user.name} (me)` : user.name;
+    elements.assigneeSelect.appendChild(option);
   }
 }
 
@@ -737,6 +941,25 @@ function resetTagsDropdown(): void {
     elements.tagsSelect.remove(1);
   }
   elements.tagsSelect.disabled = true;
+}
+
+function resetAssigneeDropdown(): void {
+  state.users = [];
+  state.selectedAssigneeGid = null;
+  while (elements.assigneeSelect.options.length > 1) {
+    elements.assigneeSelect.remove(1);
+  }
+  elements.assigneeSelect.value = '';
+  elements.assigneeSelect.disabled = true;
+}
+
+function resetDueDateInputs(): void {
+  state.dueDate = null;
+  state.dueTime = null;
+  elements.dueDateInput.value = '';
+  elements.dueTimeInput.value = '';
+  elements.includeTimeCheckbox.checked = false;
+  elements.dueTimeInput.disabled = true;
 }
 
 // =============================================================================
@@ -793,12 +1016,14 @@ async function saveLastUsedSelections(): Promise<void> {
   const workspaceGid = elements.workspaceSelect.value;
   const projectGid = elements.projectSelect.value;
   const sectionGid = elements.sectionSelect.value;
+  const assigneeGid = state.selectedAssigneeGid;
 
   if (workspaceGid && projectGid) {
     const lastUsed: LastUsedSelections = {
       workspaceGid,
       projectGid,
       sectionGid: sectionGid || undefined,
+      assigneeGid: assigneeGid || undefined,
     };
     await set(STORAGE_KEYS.LAST_USED_SELECTIONS, lastUsed);
   }
@@ -876,15 +1101,58 @@ async function handleSubmitTask(): Promise<void> {
     // Add optional fields
     const notes = elements.taskNotesTextarea.value.trim();
     const url = elements.taskUrlInput.value.trim();
-    if (notes || url || state.accountEmail) {
-      // Combine notes with URL and email info
-      const noteParts: string[] = [];
-      if (notes) noteParts.push(notes);
-      if (url) noteParts.push(`Source: ${url}`);
-      // Include email address for Gmail tasks (helps identify the account)
-      if (state.accountEmail) {
-        noteParts.push(`Email account: ${state.accountEmail}`);
+    const noteParts: string[] = [];
+
+    if (notes) noteParts.push(notes);
+    if (url) noteParts.push(`Source: ${url}`);
+
+    // Add email metadata when content type is email
+    if (state.contentType === 'email') {
+      const emailMetadataParts: string[] = [];
+
+      if (state.senderName) {
+        emailMetadataParts.push(`From: ${state.senderName}`);
       }
+      if (state.senderEmail) {
+        emailMetadataParts.push(`Email: ${state.senderEmail}`);
+      }
+      if (state.emailDate) {
+        emailMetadataParts.push(`Date received: ${formatDateHumanReadable(state.emailDate)}`);
+      }
+      if (state.emailSubject) {
+        emailMetadataParts.push(`Subject: ${state.emailSubject}`);
+      }
+      // Account email is only available for Gmail
+      if (state.accountEmail) {
+        emailMetadataParts.push(`Account: ${state.accountEmail}`);
+      }
+
+      if (emailMetadataParts.length > 0) {
+        noteParts.push(emailMetadataParts.join('\n'));
+      }
+
+      // Build search string based on email client
+      const searchParams = {
+        senderEmail: state.senderEmail,
+        subject: state.emailSubject,
+        date: state.emailDate,
+      };
+
+      const isGmail = state.pageUrl.includes('mail.google.com');
+      if (isGmail) {
+        const searchString = buildGmailSearchString(searchParams);
+        if (searchString) {
+          noteParts.push(`Search in Gmail:\n${searchString}`);
+        }
+      } else {
+        const searchString = buildOutlookSearchString(searchParams);
+        if (searchString) {
+          noteParts.push(`Search in Outlook:\n${searchString}`);
+        }
+      }
+    }
+
+    if (noteParts.length > 0) {
       payload.notes = noteParts.join('\n\n');
     }
 
@@ -895,6 +1163,18 @@ async function handleSubmitTask(): Promise<void> {
 
     if (state.selectedTagGids.length > 0) {
       payload.tagGids = state.selectedTagGids;
+    }
+
+    // Add assignee if selected
+    if (state.selectedAssigneeGid) {
+      payload.assignee = state.selectedAssigneeGid;
+    }
+
+    // Add due date/time
+    if (state.dueDate) {
+      const effectiveTime = elements.includeTimeCheckbox.checked ? state.dueTime : null;
+      const dateFields = formatDateForAsana(state.dueDate, effectiveTime);
+      Object.assign(payload, dateFields);
     }
 
     // Send to service worker
@@ -953,7 +1233,11 @@ function setupEventListeners(): void {
   // Workspace change
   elements.workspaceSelect.addEventListener('change', async () => {
     const workspaceGid = elements.workspaceSelect.value;
-    await loadProjects(workspaceGid);
+    // Load projects and users in parallel
+    await Promise.all([
+      loadProjects(workspaceGid),
+      loadAndDefaultAssignee(workspaceGid),
+    ]);
     updateSubmitButtonState();
   });
 
@@ -989,6 +1273,48 @@ function setupEventListeners(): void {
     }
   });
 
+  // Assignee change
+  elements.assigneeSelect.addEventListener('change', () => {
+    state.selectedAssigneeGid = elements.assigneeSelect.value || null;
+  });
+
+  // Due date input change
+  elements.dueDateInput.addEventListener('change', () => {
+    state.dueDate = elements.dueDateInput.value || null;
+  });
+
+  // Due time input change
+  elements.dueTimeInput.addEventListener('change', () => {
+    state.dueTime = elements.dueTimeInput.value || null;
+  });
+
+  // Today button
+  elements.btnToday.addEventListener('click', () => {
+    const today = new Date();
+    const dateStr = today.toISOString().split('T')[0];
+    elements.dueDateInput.value = dateStr;
+    state.dueDate = dateStr;
+  });
+
+  // Tomorrow button
+  elements.btnTomorrow.addEventListener('click', () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateStr = tomorrow.toISOString().split('T')[0];
+    elements.dueDateInput.value = dateStr;
+    state.dueDate = dateStr;
+  });
+
+  // Include time checkbox
+  elements.includeTimeCheckbox.addEventListener('change', () => {
+    const includeTime = elements.includeTimeCheckbox.checked;
+    elements.dueTimeInput.disabled = !includeTime;
+    if (!includeTime) {
+      elements.dueTimeInput.value = '';
+      state.dueTime = null;
+    }
+  });
+
   // Task name input
   elements.taskNameInput.addEventListener('input', updateSubmitButtonState);
 
@@ -1006,6 +1332,7 @@ function setupEventListeners(): void {
     elements.aiBadge.classList.add('hidden');
     state.aiSuggestionUsed = false;
     clearWarnings(); // Clear any previous warnings
+    resetDueDateInputs(); // Reset due date for new task
     updateSubmitButtonState();
 
     // Re-trigger AI generation for new task

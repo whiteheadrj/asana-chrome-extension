@@ -1181,7 +1181,7 @@ describe('oauth module', () => {
       const authPromise = startAuthFlow();
 
       // Give the async code a moment to set up pending state
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Simulate the callback from the callback page
       const callbackResult = await handleOAuthCallback('auth_code_123');
@@ -1216,7 +1216,7 @@ describe('oauth module', () => {
       const authPromise = startAuthFlow();
 
       // Give the async code a moment to set up pending state
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Simulate the callback
       const callbackResult = await handleOAuthCallback('invalid_code');

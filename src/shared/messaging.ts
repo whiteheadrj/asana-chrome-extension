@@ -11,6 +11,7 @@ import type {
   AsanaProject,
   AsanaSection,
   AsanaTag,
+  AsanaUser,
   CreateTaskResponse,
   GmailEmailInfo,
   OutlookEmailInfo,
@@ -60,6 +61,7 @@ export interface MessageResponseMap {
   GET_PROJECTS: AsanaProject[];
   GET_SECTIONS: AsanaSection[];
   GET_TAGS: AsanaTag[];
+  GET_USERS: AsanaUser[];
   CREATE_TASK: CreateTaskResponse;
   REFRESH_CACHE: void;
   GET_PAGE_INFO: GmailEmailInfo | OutlookEmailInfo | null;

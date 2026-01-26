@@ -9,6 +9,7 @@ import type {
   AsanaSection,
   AsanaTag,
   AsanaTask,
+  AsanaUser,
   CreateTaskPayload,
 } from '../shared/types';
 import { ASANA_API_BASE } from '../shared/constants';
@@ -272,6 +273,53 @@ export async function getTags(workspaceGid: string): Promise<AsanaTag[]> {
 }
 
 // =============================================================================
+// User Functions
+// =============================================================================
+
+/**
+ * Get all users in a workspace
+ * @param workspaceGid - The workspace GID
+ * @returns Promise resolving to array of users
+ */
+export async function getUsers(workspaceGid: string): Promise<AsanaUser[]> {
+  const data = await asanaFetch<Array<{ gid: string; name: string; email: string }>>(
+    `/workspaces/${workspaceGid}/users`,
+    {
+      params: {
+        opt_fields: 'gid,name,email',
+      },
+    }
+  );
+
+  return data.map((user) => ({
+    gid: user.gid,
+    name: user.name,
+    email: user.email,
+  }));
+}
+
+/**
+ * Get the currently authenticated user
+ * @returns Promise resolving to the current user
+ */
+export async function getCurrentUser(): Promise<AsanaUser> {
+  const data = await asanaFetch<{ gid: string; name: string; email: string }>(
+    '/users/me',
+    {
+      params: {
+        opt_fields: 'gid,name,email',
+      },
+    }
+  );
+
+  return {
+    gid: data.gid,
+    name: data.name,
+    email: data.email,
+  };
+}
+
+// =============================================================================
 // Task Functions
 // =============================================================================
 
@@ -306,6 +354,17 @@ export async function createTask(payload: CreateTaskPayload): Promise<AsanaTask>
 
   if (payload.tagGids && payload.tagGids.length > 0) {
     requestBody.tags = payload.tagGids;
+  }
+
+  if (payload.assignee) {
+    requestBody.assignee = payload.assignee;
+  }
+
+  // due_at and due_on are mutually exclusive; due_at takes precedence
+  if (payload.due_at) {
+    requestBody.due_at = payload.due_at;
+  } else if (payload.due_on) {
+    requestBody.due_on = payload.due_on;
   }
 
   const data = await asanaFetch<{ gid: string; name: string; permalink_url: string }>(

@@ -13,6 +13,7 @@ export type ExtensionMessage =
   | { type: 'GET_PROJECTS'; workspaceGid: string }
   | { type: 'GET_SECTIONS'; projectGid: string }
   | { type: 'GET_TAGS'; workspaceGid: string }
+  | { type: 'GET_USERS'; workspaceGid: string }
   | { type: 'REFRESH_CACHE' }
   | { type: 'GET_AUTH_STATUS' }
   | { type: 'START_AUTH' }
@@ -29,6 +30,9 @@ export interface CreateTaskPayload {
   sectionGid?: string;
   tagGids?: string[];
   workspaceGid: string;
+  assignee?: string;
+  due_on?: string;
+  due_at?: string;
 }
 
 export interface CreateTaskResponse {
@@ -62,6 +66,12 @@ export interface AsanaTag {
   gid: string;
   name: string;
   workspaceGid: string;
+}
+
+export interface AsanaUser {
+  gid: string;
+  name: string;
+  email: string;
 }
 
 export interface AsanaTask {
@@ -113,6 +123,9 @@ export interface GmailEmailInfo {
   subject?: string;
   emailBody?: string;
   emailSender?: string;
+  senderName?: string;
+  senderEmail?: string;
+  emailDate?: string;
   warnings?: Warning[]; // Edge case warnings (account reorder, confidential mode)
 }
 
@@ -134,6 +147,9 @@ export interface OutlookEmailInfo {
   subject?: string;
   emailBody?: string;
   emailSender?: string;
+  senderName?: string;
+  senderEmail?: string;
+  emailDate?: string;
 }
 
 export interface OutlookPageInfo {
@@ -243,6 +259,7 @@ export interface LastUsedSelections {
   workspaceGid: string;
   projectGid: string;
   sectionGid?: string;
+  assigneeGid?: string;
 }
 
 export interface EmailAccountMapping {

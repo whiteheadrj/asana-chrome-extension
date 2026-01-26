@@ -18,6 +18,11 @@ export interface GmailWarning {
   message: string;
 }
 
+export interface EmailSenderInfo {
+  name?: string;
+  email?: string;
+}
+
 export interface GmailEmailInfoWithWarnings extends GmailEmailInfo {
   warnings: GmailWarning[];
 }
@@ -311,6 +316,148 @@ export function getEmailSender(): string | undefined {
 }
 
 /**
+ * Extract sender name and email separately from the DOM
+ *
+ * @returns EmailSenderInfo object with name and email fields
+ */
+export function getSenderDetails(): EmailSenderInfo {
+  const result: EmailSenderInfo = {};
+
+  try {
+    // Primary method: span.gD contains both name (textContent) and email ([email] attribute)
+    const senderSpan = document.querySelector('span.gD');
+    if (senderSpan) {
+      const textContent = senderSpan.textContent?.trim();
+      if (textContent) {
+        result.name = textContent;
+        console.debug('[Asana Extension] Gmail sender name extracted using selector: span.gD');
+      }
+
+      const emailAttr = senderSpan.getAttribute('email');
+      if (emailAttr) {
+        result.email = emailAttr;
+        console.debug('[Asana Extension] Gmail sender email extracted using selector: span.gD [email]');
+      }
+    }
+
+    // Fallback: [email] attribute if not found on span.gD
+    if (!result.email) {
+      const emailElement = document.querySelector('[email]');
+      if (emailElement) {
+        const emailValue = emailElement.getAttribute('email');
+        if (emailValue) {
+          result.email = emailValue;
+          console.debug('[Asana Extension] Gmail sender email extracted using selector: [email]');
+        }
+      }
+    }
+
+    // Fallback: hovercard-id for email
+    if (!result.email) {
+      const hovercardSpan = document.querySelector('span[data-hovercard-id]');
+      if (hovercardSpan) {
+        const hovercardId = hovercardSpan.getAttribute('data-hovercard-id');
+        if (hovercardId) {
+          const emailMatch = hovercardId.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+          if (emailMatch) {
+            result.email = emailMatch[0];
+            console.debug('[Asana Extension] Gmail sender email extracted using selector: span[data-hovercard-id]');
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting sender details from Gmail DOM:', error);
+  }
+
+  return result;
+}
+
+/**
+ * Extract the email date from the DOM
+ *
+ * @returns ISO date string or undefined if not found
+ */
+export function getEmailDate(): string | undefined {
+  try {
+    // Selectors for email date in Gmail, in order of preference
+    // These cover various Gmail UI versions and layouts
+    const selectors = [
+      '.gK .g3',                           // Standard date element in email header (classic)
+      '.g3',                               // Date element fallback
+      'span.g3',                           // More specific date span
+      '[data-legacy-thread-id] .gK span',  // Thread view date
+      '.ade .ads',                         // Expanded email header date
+      'td.xY span.xW',                     // List view date cell
+      '.ii.gt .gK span',                   // Message content area date
+      '[data-tooltip][data-message-id]',   // Date tooltip on message
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        // Try title attribute first (often contains full date)
+        const titleAttr = element.getAttribute('title');
+        if (titleAttr) {
+          const parsed = parseDateString(titleAttr);
+          if (parsed) {
+            console.debug(`[Asana Extension] Gmail date extracted using selector: ${selector} (title attr)`);
+            return parsed;
+          }
+        }
+
+        // Try data-tooltip attribute (some Gmail versions use this)
+        const tooltipAttr = element.getAttribute('data-tooltip');
+        if (tooltipAttr) {
+          const parsed = parseDateString(tooltipAttr);
+          if (parsed) {
+            console.debug(`[Asana Extension] Gmail date extracted using selector: ${selector} (data-tooltip)`);
+            return parsed;
+          }
+        }
+
+        // Fall back to textContent
+        if (element.textContent) {
+          const parsed = parseDateString(element.textContent.trim());
+          if (parsed) {
+            console.debug(`[Asana Extension] Gmail date extracted using selector: ${selector} (textContent)`);
+            return parsed;
+          }
+        }
+      }
+      console.debug(`[Asana Extension] Gmail date selector failed: ${selector}`);
+    }
+
+    console.debug('[Asana Extension] Could not extract email date from Gmail DOM - all selectors failed');
+    return undefined;
+  } catch (error) {
+    console.debug('[Asana Extension] Error extracting email date from Gmail DOM:', error);
+    return undefined;
+  }
+}
+
+/**
+ * Parse a date string into ISO format (YYYY-MM-DD)
+ * Handles various Gmail date formats like "Dec 15, 2024", "15 Dec 2024", etc.
+ *
+ * @param dateStr The date string to parse
+ * @returns ISO date string or undefined if parsing fails
+ */
+function parseDateString(dateStr: string): string | undefined {
+  try {
+    // Try to parse using Date constructor
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      // Return ISO date (YYYY-MM-DD)
+      return date.toISOString().split('T')[0];
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Try to extract the email subject from the DOM
  *
  * @returns The subject or undefined if not found
@@ -457,6 +604,7 @@ async function detectWarnings(
 export function getGmailEmailInfo(): GmailEmailInfo {
   const url = window.location.href;
   const { userId, messageId, permanentUrl } = parseGmailUrl(url);
+  const senderDetails = getSenderDetails();
 
   return {
     messageId,
@@ -466,7 +614,12 @@ export function getGmailEmailInfo(): GmailEmailInfo {
     isConfidentialMode: checkConfidentialMode(),
     subject: getEmailSubject(),
     emailBody: getEmailBody(),
-    emailSender: getEmailSender(),
+    // Backward compatibility: keep emailSender populated
+    emailSender: senderDetails.name || senderDetails.email,
+    // New fields for enhanced metadata
+    senderName: senderDetails.name,
+    senderEmail: senderDetails.email,
+    emailDate: getEmailDate(),
   };
 }
 
@@ -483,7 +636,8 @@ export async function getGmailEmailInfoWithWarnings(): Promise<GmailEmailInfoWit
   const isConfidentialMode = checkConfidentialMode();
   const subject = getEmailSubject();
   const emailBody = getEmailBody();
-  const emailSender = getEmailSender();
+  const senderDetails = getSenderDetails();
+  const emailDate = getEmailDate();
 
   // Detect warnings asynchronously
   const warnings = await detectWarnings(accountEmail, userId, isConfidentialMode);
@@ -496,7 +650,12 @@ export async function getGmailEmailInfoWithWarnings(): Promise<GmailEmailInfoWit
     isConfidentialMode,
     subject,
     emailBody,
-    emailSender,
+    // Backward compatibility: keep emailSender populated
+    emailSender: senderDetails.name || senderDetails.email,
+    // New fields for enhanced metadata
+    senderName: senderDetails.name,
+    senderEmail: senderDetails.email,
+    emailDate,
     warnings,
   };
 }

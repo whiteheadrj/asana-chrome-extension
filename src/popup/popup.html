@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=400, initial-scale=1.0">
+  <meta name="viewport" content="width=380, initial-scale=1.0">
   <title>Create Asana Task</title>
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -71,7 +71,7 @@
           id="task-notes"
           name="taskNotes"
           placeholder="Add any notes..."
-          rows="3"
+          rows="2"
         ></textarea>
       </div>
 
@@ -103,12 +103,36 @@
         </select>
       </div>
 
-      <!-- Section Dropdown -->
+      <!-- Section and Assignee Row -->
+      <div class="form-row">
+        <div class="form-group form-group-half">
+          <label for="section-select">Section</label>
+          <select id="section-select" name="sectionGid" disabled>
+            <option value="">No section</option>
+          </select>
+        </div>
+        <div class="form-group form-group-half">
+          <label for="assignee-select">Assignee</label>
+          <select id="assignee-select" name="assigneeGid" disabled>
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Due Date Picker -->
       <div class="form-group">
-        <label for="section-select">Section (optional)</label>
-        <select id="section-select" name="sectionGid" disabled>
-          <option value="">No section</option>
-        </select>
+        <label for="due-date">Due Date (optional)</label>
+        <div class="date-picker-group">
+          <input type="date" id="due-date" name="dueDate">
+          <div class="quick-pick-buttons">
+            <button type="button" id="btn-today" class="quick-pick-btn">Today</button>
+            <button type="button" id="btn-tomorrow" class="quick-pick-btn">Tomorrow</button>
+          </div>
+        </div>
+        <div class="time-picker-group">
+          <label><input type="checkbox" id="include-time"> Include time</label>
+          <input type="time" id="due-time" name="dueTime" disabled>
+        </div>
       </div>
 
       <!-- Tags Multi-Select -->
