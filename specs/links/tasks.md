@@ -64,7 +64,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - _Requirements: FR-8, AC-2.1_
   - _Design: Interface Definitions_
 
-- [ ] 1.6 Add renderHistoryList to history.ts
+- [x] 1.6 Add renderHistoryList to history.ts
   - **Do**:
     1. Add `renderHistoryList(container: HTMLElement, entries: TaskHistoryEntry[]): void`
     2. Clear container innerHTML

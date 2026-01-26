@@ -60,3 +60,49 @@ export function formatRelativeTime(timestamp: number): string {
   const day = date.getDate();
   return `${month} ${day}`;
 }
+
+/**
+ * Render history list into container element
+ * @param container - DOM element to render into
+ * @param entries - Array of history entries to display
+ */
+export function renderHistoryList(
+  container: HTMLElement,
+  entries: TaskHistoryEntry[]
+): void {
+  // Clear container
+  container.innerHTML = '';
+
+  // Show empty state if no entries
+  if (entries.length === 0) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.className = 'history-empty';
+    emptyDiv.textContent = 'No tasks created yet';
+    container.appendChild(emptyDiv);
+    return;
+  }
+
+  // Create list
+  const ul = document.createElement('ul');
+  ul.className = 'history-list';
+
+  for (const entry of entries) {
+    const li = document.createElement('li');
+    li.className = 'history-item';
+    li.dataset.url = entry.permalink_url;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'history-name';
+    nameSpan.textContent = entry.name;
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'history-time';
+    timeSpan.textContent = formatRelativeTime(entry.createdAt);
+
+    li.appendChild(nameSpan);
+    li.appendChild(timeSpan);
+    ul.appendChild(li);
+  }
+
+  container.appendChild(ul);
+}
