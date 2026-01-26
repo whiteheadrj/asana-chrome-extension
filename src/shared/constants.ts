@@ -39,6 +39,9 @@ export enum STORAGE_KEYS {
 
   // Gmail account mapping (for detecting account reorder)
   EMAIL_ACCOUNT_MAPPING = 'email_account_mapping',
+
+  // Task history
+  TASK_HISTORY = 'task_history',
 }
 
 // =============================================================================

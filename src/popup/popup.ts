@@ -9,7 +9,6 @@ import type {
   AsanaProject,
   AsanaSection,
   AsanaTag,
-  AsanaTask,
   AsanaUser,
   LastUsedSelections,
   GmailEmailInfo,
@@ -17,6 +16,7 @@ import type {
   AIConfig,
   AIInput,
   CreateTaskPayload,
+  CreateTaskResponse,
   Warning,
 } from '../shared/types';
 import { STORAGE_KEYS } from '../shared/constants';
@@ -25,6 +25,13 @@ import { generateTaskName } from '../shared/ai';
 import { isOffline } from '../shared/errors';
 import type { MessageErrorCode } from '../shared/messaging';
 import { buildGmailSearchString, buildOutlookSearchString } from './email-search';
+import { loadHistory, renderHistoryList, saveToHistory } from './history';
+
+// =============================================================================
+// Tab Constants
+// =============================================================================
+
+type TabName = 'create' | 'history';
 
 // =============================================================================
 // DOM Elements
@@ -76,6 +83,13 @@ const elements = {
 
   // Success
   taskLink: document.getElementById('task-link') as HTMLAnchorElement,
+
+  // Tabs
+  tabBar: document.querySelector('.tab-bar') as HTMLElement,
+  tabButtons: document.querySelectorAll('.tab-button') as NodeListOf<HTMLButtonElement>,
+  panelCreate: document.getElementById('panel-create') as HTMLElement,
+  panelHistory: document.getElementById('panel-history') as HTMLElement,
+  historyContainer: document.getElementById('history-container') as HTMLElement,
 };
 
 // =============================================================================
@@ -112,6 +126,9 @@ interface PopupLocalState {
   dueTime: string | null;
   // Warnings
   warnings: Warning[];
+  // Tab state
+  activeTab: TabName;
+  historyLoaded: boolean;
 }
 
 const state: PopupLocalState = {
@@ -144,6 +161,9 @@ const state: PopupLocalState = {
   dueTime: null,
   // Warnings
   warnings: [],
+  // Tab state
+  activeTab: 'create',
+  historyLoaded: false,
 };
 
 // =============================================================================
@@ -198,6 +218,44 @@ function showSection(section: 'auth' | 'loading' | 'form' | 'success'): void {
   elements.loadingSection.classList.toggle('hidden', section !== 'loading');
   elements.taskForm.classList.toggle('hidden', section !== 'form');
   elements.successSection.classList.toggle('hidden', section !== 'success');
+}
+
+/**
+ * Switch between tabs (Create Task / History)
+ */
+async function switchTab(tab: TabName): Promise<void> {
+  if (state.activeTab === tab) {
+    return;
+  }
+
+  state.activeTab = tab;
+
+  // Toggle active class on tab buttons
+  elements.tabButtons.forEach(button => {
+    const buttonTab = button.dataset.tab as TabName;
+    button.classList.toggle('active', buttonTab === tab);
+    button.setAttribute('aria-selected', buttonTab === tab ? 'true' : 'false');
+  });
+
+  // Toggle panel visibility
+  if (tab === 'create') {
+    elements.panelCreate.classList.remove('hidden');
+    elements.panelHistory.classList.add('hidden');
+    showSection('form');
+  } else {
+    elements.panelCreate.classList.add('hidden');
+    elements.panelHistory.classList.remove('hidden');
+  }
+
+  // Hide success section when switching tabs (it's outside panels)
+  elements.successSection.classList.add('hidden');
+
+  // Load and render history when switching to History tab
+  if (tab === 'history') {
+    const entries = await loadHistory();
+    renderHistoryList(elements.historyContainer, entries);
+    state.historyLoaded = true;
+  }
 }
 
 function showError(message: string): void {
@@ -1178,7 +1236,7 @@ async function handleSubmitTask(): Promise<void> {
     }
 
     // Send to service worker
-    const response = await sendMessage<AsanaTask>({
+    const response = await sendMessage<CreateTaskResponse>({
       type: 'CREATE_TASK',
       payload,
     });
@@ -1187,9 +1245,23 @@ async function handleSubmitTask(): Promise<void> {
       // Save selections for next time
       await saveLastUsedSelections();
 
+      // Get task name from form input (API response doesn't include it)
+      const taskName = elements.taskNameInput.value;
+
+      // Save to history (use taskGid/taskUrl from response, name from form)
+      await saveToHistory({
+        gid: response.data.taskGid!,
+        name: taskName,
+        permalink_url: response.data.taskUrl!,
+        createdAt: Date.now(),
+      });
+
+      // Reset historyLoaded so next History tab visit reloads
+      state.historyLoaded = false;
+
       // Show success
-      elements.taskLink.href = response.data.permalink_url;
-      elements.taskLink.textContent = response.data.name;
+      elements.taskLink.href = response.data.taskUrl!;
+      elements.taskLink.textContent = taskName;
       showSection('success');
     } else {
       const errorMessage = getErrorMessage(response.error, response.errorCode, 'create task');
@@ -1227,6 +1299,20 @@ async function handleRefreshCache(): Promise<void> {
 // =============================================================================
 
 function setupEventListeners(): void {
+  // Tab bar click (event delegation)
+  if (elements.tabBar) {
+    elements.tabBar.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const tabButton = target.closest('.tab-button') as HTMLElement;
+      if (tabButton) {
+        const tab = tabButton.dataset.tab as TabName;
+        if (tab) {
+          switchTab(tab);
+        }
+      }
+    });
+  }
+
   // Login button
   elements.loginButton.addEventListener('click', handleLogin);
 
@@ -1272,6 +1358,22 @@ function setupEventListeners(): void {
       }
     }
   });
+
+  // History item click (event delegation)
+  if (elements.historyContainer) {
+    elements.historyContainer.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const historyItem = target.closest('.history-item') as HTMLElement;
+      if (historyItem) {
+        const url = historyItem.dataset.url;
+        if (url) {
+          chrome.tabs.create({ url });
+        }
+      }
+    });
+  } else {
+    console.error('History container element not found!');
+  }
 
   // Assignee change
   elements.assigneeSelect.addEventListener('change', () => {
