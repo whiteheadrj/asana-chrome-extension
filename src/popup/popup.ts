@@ -25,7 +25,7 @@ import { generateTaskName } from '../shared/ai';
 import { isOffline } from '../shared/errors';
 import type { MessageErrorCode } from '../shared/messaging';
 import { buildGmailSearchString, buildOutlookSearchString } from './email-search';
-import { loadHistory, renderHistoryList } from './history';
+import { loadHistory, renderHistoryList, saveToHistory } from './history';
 
 // =============================================================================
 // DOM Elements
@@ -1227,6 +1227,17 @@ async function handleSubmitTask(): Promise<void> {
     if (response.success && response.data) {
       // Save selections for next time
       await saveLastUsedSelections();
+
+      // Save to history
+      await saveToHistory({
+        gid: response.data.gid,
+        name: response.data.name,
+        permalink_url: response.data.permalink_url,
+        createdAt: Date.now(),
+      });
+
+      // Reset historyLoaded so next History tab visit reloads
+      state.historyLoaded = false;
 
       // Show success
       elements.taskLink.href = response.data.permalink_url;

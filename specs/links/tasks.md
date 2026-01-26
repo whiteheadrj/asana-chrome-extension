@@ -141,7 +141,7 @@ Focus: Validate tabbed UI + history persistence end-to-end. Skip tests, accept m
   - **Done when**: No lint errors, no type errors
   - **Commit**: `chore(popup): pass quality checkpoint` (only if fixes needed)
 
-- [ ] 1.12 Integrate history save into task creation success
+- [x] 1.12 Integrate history save into task creation success
   - **Do**:
     1. In popup.ts task creation success handler (after saveLastUsedSelections)
     2. Import `saveToHistory` from `./history`
