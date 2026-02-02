@@ -240,7 +240,7 @@ describe('buildGmailSearchString', () => {
 
 describe('buildOutlookSearchString', () => {
   describe('with all params', () => {
-    it('builds search string with all parameters', () => {
+    it('builds search string with from and subject (date intentionally excluded)', () => {
       const params: EmailSearchParams = {
         senderEmail: 'jane@company.com',
         subject: 'Monthly Report',
@@ -251,7 +251,8 @@ describe('buildOutlookSearchString', () => {
 
       expect(result).toContain('from:"jane@company.com"');
       expect(result).toContain('subject:"Monthly Report"');
-      expect(result).toContain('received:1/20/2026');
+      // Date is intentionally excluded as it's unreliable in Outlook search
+      expect(result).not.toContain('received:');
     });
 
     it('joins parts with spaces', () => {
@@ -264,7 +265,7 @@ describe('buildOutlookSearchString', () => {
       const result = buildOutlookSearchString(params);
 
       const parts = result.split(' ');
-      expect(parts.length).toBe(3); // from, subject, received
+      expect(parts.length).toBe(2); // from, subject (date excluded)
     });
   });
 
@@ -294,14 +295,15 @@ describe('buildOutlookSearchString', () => {
       expect(result).toBe('subject:"Quarterly Review"');
     });
 
-    it('builds search string with only date', () => {
+    it('returns empty string when only date provided (date is excluded)', () => {
       const params: EmailSearchParams = {
         date: '2026-07-04',
       };
 
       const result = buildOutlookSearchString(params);
 
-      expect(result).toBe('received:7/4/2026');
+      // Date is intentionally excluded as it's unreliable in Outlook search
+      expect(result).toBe('');
     });
 
     it('builds search string with senderEmail and subject (no date)', () => {
@@ -316,7 +318,7 @@ describe('buildOutlookSearchString', () => {
       expect(result).not.toContain('received:');
     });
 
-    it('builds search string with senderEmail and date (no subject)', () => {
+    it('builds search string with senderEmail only when date also provided', () => {
       const params: EmailSearchParams = {
         senderEmail: 'hr@company.com',
         date: '2026-09-15',
@@ -324,12 +326,13 @@ describe('buildOutlookSearchString', () => {
 
       const result = buildOutlookSearchString(params);
 
-      expect(result).toContain('from:"hr@company.com"');
-      expect(result).toContain('received:9/15/2026');
+      expect(result).toBe('from:"hr@company.com"');
+      // Date is intentionally excluded
+      expect(result).not.toContain('received:');
       expect(result).not.toContain('subject:');
     });
 
-    it('builds search string with subject and date (no senderEmail)', () => {
+    it('builds search string with subject only when date also provided', () => {
       const params: EmailSearchParams = {
         subject: 'Invoice Attached',
         date: '2026-11-30',
@@ -337,62 +340,10 @@ describe('buildOutlookSearchString', () => {
 
       const result = buildOutlookSearchString(params);
 
-      expect(result).toContain('subject:"Invoice Attached"');
-      expect(result).toContain('received:11/30/2026');
+      expect(result).toBe('subject:"Invoice Attached"');
+      // Date is intentionally excluded
+      expect(result).not.toContain('received:');
       expect(result).not.toContain('from:');
-    });
-  });
-
-  describe('date format conversion (ISO to Outlook M/D/YYYY)', () => {
-    it('converts ISO date to Outlook format without leading zeros', () => {
-      const params: EmailSearchParams = {
-        date: '2026-01-05',
-      };
-
-      const result = buildOutlookSearchString(params);
-
-      // Outlook uses M/D/YYYY format (no leading zeros)
-      expect(result).toBe('received:1/5/2026');
-    });
-
-    it('handles double-digit month and day', () => {
-      const params: EmailSearchParams = {
-        date: '2026-12-25',
-      };
-
-      const result = buildOutlookSearchString(params);
-
-      expect(result).toBe('received:12/25/2026');
-    });
-
-    it('removes leading zeros from single-digit months', () => {
-      const params: EmailSearchParams = {
-        date: '2026-03-15',
-      };
-
-      const result = buildOutlookSearchString(params);
-
-      expect(result).toBe('received:3/15/2026');
-    });
-
-    it('removes leading zeros from single-digit days', () => {
-      const params: EmailSearchParams = {
-        date: '2026-10-07',
-      };
-
-      const result = buildOutlookSearchString(params);
-
-      expect(result).toBe('received:10/7/2026');
-    });
-
-    it('removes leading zeros from both month and day', () => {
-      const params: EmailSearchParams = {
-        date: '2026-05-03',
-      };
-
-      const result = buildOutlookSearchString(params);
-
-      expect(result).toBe('received:5/3/2026');
     });
   });
 
@@ -468,24 +419,25 @@ describe('Gmail vs Outlook format differences', () => {
     expect(outlook).toContain('from:"test@example.com"');
   });
 
-  it('Gmail uses after/before for date, Outlook uses received', () => {
+  it('Gmail includes date, Outlook excludes date (unreliable in Outlook search)', () => {
     const gmail = buildGmailSearchString(commonParams);
     const outlook = buildOutlookSearchString(commonParams);
 
     expect(gmail).toContain('after:');
     expect(gmail).toContain('before:');
-    expect(outlook).toContain('received:');
+    // Outlook intentionally excludes date as it's unreliable
+    expect(outlook).not.toContain('received:');
     expect(outlook).not.toContain('after:');
     expect(outlook).not.toContain('before:');
   });
 
-  it('date formats differ: Gmail YYYY/MM/DD, Outlook M/D/YYYY', () => {
+  it('Gmail includes date format YYYY/MM/DD, Outlook has no date', () => {
     const gmail = buildGmailSearchString(commonParams);
     const outlook = buildOutlookSearchString(commonParams);
 
     // Gmail format: 2026/01/05
     expect(gmail).toContain('2026/01/05');
-    // Outlook format: 1/5/2026 (no leading zeros)
-    expect(outlook).toContain('1/5/2026');
+    // Outlook excludes date entirely
+    expect(outlook).not.toContain('2026');
   });
 });
