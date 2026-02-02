@@ -25,18 +25,6 @@ function toGmailDate(isoDate: string): string {
   return isoDate.replace(/-/g, '/');
 }
 
-/**
- * Convert ISO date (YYYY-MM-DD) to Outlook format (M/D/YYYY)
- * Outlook uses no leading zeros for month and day
- */
-function toOutlookDate(isoDate: string): string {
-  const [year, month, day] = isoDate.split('-');
-  // Remove leading zeros by converting to number and back
-  const m = parseInt(month, 10);
-  const d = parseInt(day, 10);
-  return `${m}/${d}/${year}`;
-}
-
 // =============================================================================
 // Search String Builders
 // =============================================================================
@@ -79,7 +67,8 @@ export function buildGmailSearchString(params: EmailSearchParams): string {
 
 /**
  * Build Outlook search string from email parameters
- * Format: from:"email" subject:"text" received:M/D/YYYY
+ * Format: from:"email" subject:"text"
+ * Note: received date is intentionally excluded as it's unreliable in Outlook search
  */
 export function buildOutlookSearchString(params: EmailSearchParams): string {
   const parts: string[] = [];
@@ -92,10 +81,6 @@ export function buildOutlookSearchString(params: EmailSearchParams): string {
     // Escape double quotes in subject
     const escapedSubject = params.subject.replace(/"/g, '\\"');
     parts.push(`subject:"${escapedSubject}"`);
-  }
-
-  if (params.date) {
-    parts.push(`received:${toOutlookDate(params.date)}`);
   }
 
   return parts.join(' ');
